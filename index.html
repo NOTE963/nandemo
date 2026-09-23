@@ -63,10 +63,14 @@ input[type=text]{width:100%; padding:12px; border-radius:10px; border:1px solid 
 .v-color{border-color:var(--v-color,#f55);}
 .v-rainbow{border-image:linear-gradient(90deg,red,orange,yellow,green,blue,violet) 1; animation:pulse 1.4s infinite;}
 @keyframes pulse{0%,100%{box-shadow:0 0 4px #fff3;} 50%{box-shadow:0 0 14px #fff9;}}
-#ufoStage{position:relative; height:220px; background:linear-gradient(#0d0a24,#241a44); border-radius:14px; overflow:hidden; margin-bottom:12px;}
-#claw{position:absolute; top:0; left:50%; transform:translateX(-50%); width:6px; height:40px; background:#ddd; transition:height .5s ease;}
-#clawHead{position:absolute; top:40px; left:50%; transform:translateX(-50%); font-size:26px; transition:top .6s ease;}
-.prizeImg{position:absolute; bottom:14px; left:50%; transform:translateX(-50%); width:46px; height:46px; border-radius:8px; object-fit:cover;}
+#coinStage{position:relative; height:170px; display:flex; align-items:center; justify-content:center; background:radial-gradient(circle,#3a2570,#140e28); border-radius:14px; overflow:hidden; margin-bottom:12px;}
+#coinBig{font-size:64px; transition:transform .15s ease;}
+#coinBig.pop{animation:coinPop .35s ease;}
+@keyframes coinPop{0%{transform:scale(1);}40%{transform:scale(1.3) rotate(15deg);}100%{transform:scale(1);}}
+#cooldownBar{position:absolute; bottom:0; left:0; height:4px; background:var(--accent2); width:0%; transition:width linear;}
+.daily-box{display:flex; align-items:center; justify-content:space-between; background:#00000044; border-radius:12px; padding:12px; margin-bottom:12px;}
+.daily-box .lbl{font-size:13px;}
+.daily-box .lbl small{display:block; color:var(--muted); font-size:11px; margin-top:2px;}
 #gachaStage{height:230px; display:flex; align-items:center; justify-content:center; position:relative; background:radial-gradient(circle,#3a2570,#140e28); border-radius:14px; margin-bottom:12px; overflow:hidden;}
 #gachaResult{width:120px; height:120px; border-radius:16px; object-fit:cover; opacity:0; transform:scale(.3) rotate(-15deg);}
 .flash{position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none;}
@@ -107,7 +111,7 @@ select{width:100%; padding:10px; border-radius:10px; background:#00000044; color
     <div class="card-box">
       <h2 id="welcomeMsg">ようこそ！</h2>
       <p style="color:var(--muted); font-size:13px; line-height:1.6;">
-        UFOキャッチャーでジェムを集めて、ガチャでキャラをコレクションしよう。<br>
+        コインタイムでジェムを集めて、ガチャでキャラをコレクションしよう。<br>
         集めたキャラはトレードで交換できるよ。
       </p>
     </div>
@@ -117,16 +121,19 @@ select{width:100%; padding:10px; border-radius:10px; background:#00000044; color
     </div>
   </section>
 
-  <section id="s-ufo" class="screen">
+  <section id="s-coin" class="screen">
     <div class="card-box">
-      <h2>🕹️ ナゾのUFOキャッチャー</h2>
-      <div id="ufoStage">
-        <div id="claw">|</div>
-        <div id="clawHead">🦾</div>
-        <img id="ufoPrizeImg" class="prizeImg" style="display:none;">
+      <div class="daily-box">
+        <div class="lbl">🎁 デイリーボーナス<small>1日1回、💎20もらえるよ</small></div>
+        <button class="btn secondary" id="dailyBtn" style="width:auto; padding:10px 16px;">受け取る</button>
       </div>
-      <button class="btn" id="grabBtn">つかむ！（何回でもOK）</button>
-      <small class="hint">成功率アップ中… ジェムがもらえるかも💎</small>
+      <h2>🪙 コインタイム</h2>
+      <div id="coinStage">
+        <div id="coinBig">🪙</div>
+        <div id="cooldownBar"></div>
+      </div>
+      <button class="btn" id="coinBtn">タップで💎5ゲット！</button>
+      <small class="hint">2秒に1回タップできるよ</small>
     </div>
   </section>
 
@@ -180,7 +187,7 @@ select{width:100%; padding:10px; border-radius:10px; background:#00000044; color
 
 <nav>
   <button data-s="s-home" class="active"><div>🏠</div>ホーム</button>
-  <button data-s="s-ufo"><div>🕹️</div>UFO</button>
+  <button data-s="s-coin"><div>🪙</div>コイン</button>
   <button data-s="s-gacha"><div>🎰</div>ガチャ</button>
   <button data-s="s-dex"><div>📖</div>図鑑</button>
   <button data-s="s-trade"><div>🔁</div>トレード</button>
@@ -294,6 +301,8 @@ function initApp(){
   renderDex();
   buildTradeSelects();
   listenTrades();
+  updateDailyBtn();
+  updateCoinBtn();
 }
 
 function renderGems(){ document.getElementById('gemCount').textContent = userData.gems; }
@@ -314,50 +323,67 @@ document.querySelectorAll('nav button').forEach(btn=>{
   };
 });
 
-// ==== UFOキャッチャー ====
-let ufoBusy = false;
-document.getElementById('grabBtn').onclick = async ()=>{
-  if(ufoBusy) return;
-  ufoBusy = true;
-  const btn = document.getElementById('grabBtn');
-  btn.disabled = true;
-  const claw = document.getElementById('claw');
-  const head = document.getElementById('clawHead');
-  claw.style.height = '150px';
-  head.style.top = '150px';
-  await new Promise(r=>setTimeout(r,650));
-  const success = Math.random() < 0.42;
-  const prizeImg = document.getElementById('ufoPrizeImg');
-  if(success){
-    const c = CHARS[Math.floor(Math.random()*CHARS.length)];
-    prizeImg.src = c.img;
-    prizeImg.style.display='block';
-    head.textContent = '🦾✨';
+// ==== コインタイム（2秒に1回、💎5） ====
+const COIN_COOLDOWN = 2000;
+let coinReadyAt = 0;
+function updateCoinBtn(){
+  const btn = document.getElementById('coinBtn');
+  const bar = document.getElementById('cooldownBar');
+  const remain = coinReadyAt - Date.now();
+  if(remain <= 0){
+    btn.disabled = false;
+    btn.textContent = 'タップで💎5ゲット！';
+    bar.style.transition = 'none';
+    bar.style.width = '0%';
   } else {
-    head.textContent = '🦾💦';
+    btn.disabled = true;
+    btn.textContent = `つぎまで ${(remain/1000).toFixed(1)}秒`;
   }
-  await new Promise(r=>setTimeout(r,500));
-  claw.style.height = '40px';
-  head.style.top = '40px';
-  prizeImg.style.display='none';
-  if(success){
-    const gain = 5 + Math.floor(Math.random()*11); // 5-15
-    userData.gems += gain;
-    renderGems(); await saveUser();
-    toast(`ゲット！💎+${gain}`);
+}
+setInterval(updateCoinBtn, 100);
+document.getElementById('coinBtn').onclick = async ()=>{
+  if(Date.now() < coinReadyAt) return;
+  userData.gems += 5;
+  renderGems(); await saveUser();
+  toast('💎+5！');
+  const coin = document.getElementById('coinBig');
+  coin.classList.remove('pop'); void coin.offsetWidth; coin.classList.add('pop');
+  coinReadyAt = Date.now() + COIN_COOLDOWN;
+  updateCoinBtn();
+  const bar = document.getElementById('cooldownBar');
+  bar.style.transition = 'none'; bar.style.width='0%';
+  requestAnimationFrame(()=>{
+    bar.style.transition = `width ${COIN_COOLDOWN}ms linear`;
+    bar.style.width = '100%';
+  });
+};
+
+// ==== デイリーボーナス（1日1回、💎20） ====
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function updateDailyBtn(){
+  const btn = document.getElementById('dailyBtn');
+  if(userData.lastDaily === todayStr()){
+    btn.disabled = true;
+    btn.textContent = '受取済み';
   } else {
-    toast('あー！おしい…！');
+    btn.disabled = false;
+    btn.textContent = '受け取る';
   }
-  head.textContent = '🦾';
-  btn.disabled = false;
-  ufoBusy = false;
+}
+document.getElementById('dailyBtn').onclick = async ()=>{
+  if(userData.lastDaily === todayStr()) return;
+  userData.lastDaily = todayStr();
+  userData.gems += 20;
+  renderGems(); await saveUser();
+  updateDailyBtn();
+  toast('デイリーボーナス💎+20！');
 };
 
 // ==== ガチャ ====
 let gachaBusy = false;
 document.getElementById('gachaBtn').onclick = async ()=>{
   if(gachaBusy) return;
-  if(userData.gems < 10){ toast('ジェムが足りないよ！UFOで稼ごう'); return; }
+  if(userData.gems < 10){ toast('ジェムが足りないよ！コインタイムで稼ごう'); return; }
   gachaBusy = true;
   const btn = document.getElementById('gachaBtn');
   btn.disabled = true;
