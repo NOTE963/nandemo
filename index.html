@@ -2,314 +2,163 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>なんでもコレクション</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;900&display=swap" rel="stylesheet">
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/firebase@8.10.1/firebase-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@8.10.1/firebase-auth.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@8.10.1/firebase-firestore.js"></script>
 <style>
 :root{
-  --bg-deep:#0d0b26;
-  --bg-panel:#161335;
-  --bg-card:#1f1c47;
-  --accent-gold:#ffd166;
-  --accent-pink:#ff5d8f;
-  --accent-blue:#4fd6ff;
-  --text-main:#f4f2ff;
-  --text-sub:#9a95c9;
-  --line:#322d63;
+  --paper:#f7f3e9; --line:#c9d8e6; --ink:#2b2b2b; --accent:#e0622a;
+  --gold:#e0b13a; --rainbow1:#ff5b5b; --rainbow2:#ffd166; --rainbow3:#6ee7b7; --rainbow4:#5b9bff; --rainbow5:#c17aff;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --paper:#20242b; --line:#333a45; --ink:#eee6d6; }
+}
+:root[data-theme="dark"]{ --paper:#20242b; --line:#333a45; --ink:#eee6d6; }
+html{scroll-padding-top:env(safe-area-inset-top,0px); height:100%;}
 *{box-sizing:border-box;}
-html,body{height:100%;}
 body{
-  margin:0;
-  font-family:'M PLUS Rounded 1c',system-ui,sans-serif;
-  background:radial-gradient(circle at 20% -10%,#2a2264 0%,var(--bg-deep) 55%);
-  color:var(--text-main);
-  min-height:100%;
-  padding-bottom:78px;
+  margin:0; min-height:100%; background:var(--paper); color:var(--ink);
+  font-family:'Zen Maru Gothic',sans-serif;
+  background-image:repeating-linear-gradient(var(--paper) 0 31px, var(--line) 31px 32px);
 }
-header.top{
-  position:sticky;top:0;z-index:20;
-  display:flex;align-items:center;justify-content:space-between;
-  padding:14px 16px;
-  background:rgba(13,11,38,.9);backdrop-filter:blur(6px);
-  border-bottom:1px solid var(--line);
-}
-header.top h1{font-size:18px;margin:0;font-weight:900;letter-spacing:.02em;}
-.currency-pill{
-  display:flex;align-items:center;gap:6px;
-  background:var(--bg-card);border:1px solid var(--line);
-  padding:6px 12px;border-radius:999px;font-weight:700;font-size:14px;
-}
-.currency-pill .coin{
-  width:16px;height:16px;border-radius:50%;
-  background:radial-gradient(circle at 35% 30%,#fff5cf,var(--accent-gold) 60%,#c98f1c);
-}
-main{max-width:520px;margin:0 auto;padding:16px;}
-.screen{display:none;animation:fadein .25s ease;}
-.screen.active{display:block;}
-@keyframes fadein{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
-
-h2.section-title{font-size:16px;margin:0 0 12px;color:var(--text-sub);font-weight:700;}
-
-/* ---- ホーム / UFOキャッチャー ---- */
-.crane-box{
-  background:var(--bg-panel);border:1px solid var(--line);border-radius:20px;
-  padding:18px;position:relative;overflow:hidden;
-}
-.crane-stage{
-  height:220px;border-radius:14px;position:relative;overflow:hidden;
-  background:linear-gradient(180deg,#241f5c,#100e30 75%);
-  border:1px solid var(--line);margin-bottom:14px;
-}
-.crane-rail{position:absolute;top:14px;left:0;right:0;height:4px;background:#403a86;}
-.crane-claw{
-  position:absolute;top:14px;width:6px;background:#8f88d6;
-  transform-origin:top center;transition:left .05s linear;
-}
-.crane-claw .head{
-  position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);
-  font-size:22px;
-}
-.prize-row{position:absolute;bottom:10px;left:0;right:0;display:flex;justify-content:space-around;font-size:26px;}
-.crane-result{
-  text-align:center;font-weight:700;min-height:22px;margin-bottom:10px;color:var(--accent-gold);
-}
-button{
-  font-family:inherit;border:none;cursor:pointer;border-radius:14px;
-  font-weight:700;transition:transform .08s ease,filter .15s ease;
-}
-button:active{transform:scale(.96);}
-button:disabled{opacity:.45;cursor:default;transform:none;}
-.btn-primary{
-  width:100%;padding:14px;font-size:16px;
-  background:linear-gradient(135deg,var(--accent-pink),#ff8a5d);
-  color:#1a0a12;
-}
-.btn-secondary{
-  padding:10px 16px;font-size:14px;background:var(--bg-card);color:var(--text-main);border:1px solid var(--line);
-}
-.hint{font-size:12px;color:var(--text-sub);text-align:center;margin-top:8px;}
-
-/* ---- ガチャ ---- */
-.gacha-box{background:var(--bg-panel);border:1px solid var(--line);border-radius:20px;padding:20px;text-align:center;}
-.gacha-machine{
-  width:150px;height:150px;margin:0 auto 16px;border-radius:50%;
-  background:radial-gradient(circle at 35% 30%,#4c4590,#1c1846 70%);
-  display:flex;align-items:center;justify-content:center;font-size:56px;
-  border:3px solid var(--line);
-  box-shadow:0 0 0 6px rgba(255,209,102,.08);
-}
-.gacha-machine.shake{animation:shake .5s ease;}
-@keyframes shake{
-  0%,100%{transform:rotate(0);}
-  20%{transform:rotate(-8deg);}
-  40%{transform:rotate(8deg);}
-  60%{transform:rotate(-6deg);}
-  80%{transform:rotate(6deg);}
-}
-.gacha-buttons{display:flex;gap:10px;margin-top:14px;}
-.result-overlay{
-  position:fixed;inset:0;z-index:100;background:rgba(6,5,20,.92);
-  display:none;align-items:center;justify-content:center;flex-direction:column;padding:24px;
-}
-.result-overlay.show{display:flex;}
-.result-card{
-  width:220px;padding:26px 18px;border-radius:20px;text-align:center;
-  background:var(--bg-card);border:2px solid var(--line);position:relative;
-  animation:pop .5s cubic-bezier(.2,1.6,.4,1);
-}
-@keyframes pop{from{transform:scale(.3) rotate(-8deg);opacity:0;}to{transform:scale(1) rotate(0);opacity:1;}}
-.result-card .emoji{font-size:64px;display:block;margin-bottom:10px;}
-.result-card .name{font-weight:900;font-size:17px;margin-bottom:6px;}
-.result-card .rarity-tag{
-  display:inline-block;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:700;
-}
-.result-card.rainbow{border-image:linear-gradient(90deg,#ff5d8f,#ffd166,#4fd6ff,#8f5dff,#ff5d8f) 1;animation:pop .5s cubic-bezier(.2,1.6,.4,1), rainbowglow 1.6s linear infinite;}
-@keyframes rainbowglow{
-  0%{box-shadow:0 0 30px 4px rgba(255,93,143,.6);}
-  33%{box-shadow:0 0 30px 4px rgba(79,214,255,.6);}
-  66%{box-shadow:0 0 30px 4px rgba(143,93,255,.6);}
-  100%{box-shadow:0 0 30px 4px rgba(255,93,143,.6);}
-}
-.confetti{position:fixed;inset:0;pointer-events:none;z-index:101;}
-.confetti span{
-  position:absolute;top:-10px;width:8px;height:14px;opacity:.9;
-  animation:fall linear forwards;
-}
-@keyframes fall{to{transform:translateY(110vh) rotate(540deg);opacity:0;}}
-
-/* ---- 図鑑 ---- */
-.zukan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
-.zukan-card{
-  background:var(--bg-card);border:1px solid var(--line);border-radius:14px;
-  padding:10px 6px;text-align:center;
-}
-.zukan-card .emoji{font-size:30px;display:block;margin-bottom:4px;filter:none;}
-.zukan-card.locked .emoji{filter:grayscale(1) brightness(.35);}
-.zukan-card .name{font-size:11px;font-weight:700;margin-bottom:3px;min-height:14px;}
-.zukan-card.locked .name{color:var(--text-sub);}
-.zukan-card .counts{font-size:10px;color:var(--text-sub);}
-.filter-row{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:2px;}
-.filter-chip{
-  padding:6px 12px;font-size:12px;background:var(--bg-card);color:var(--text-sub);
-  border:1px solid var(--line);white-space:nowrap;
-}
-.filter-chip.active{background:var(--accent-pink);color:#1a0a12;border-color:var(--accent-pink);}
-
-/* ---- トレード ---- */
-.trade-form{background:var(--bg-panel);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:16px;}
-.trade-form label{font-size:12px;color:var(--text-sub);display:block;margin:8px 0 4px;}
-select,input[type=number],input[type=text]{
-  width:100%;padding:10px;border-radius:10px;background:var(--bg-card);border:1px solid var(--line);
-  color:var(--text-main);font-family:inherit;font-size:14px;
-}
-.trade-card{
-  background:var(--bg-card);border:1px solid var(--line);border-radius:14px;
-  padding:12px;margin-bottom:10px;display:flex;align-items:center;gap:10px;
-}
-.trade-card .swap{font-size:20px;}
-.trade-card .who{font-size:11px;color:var(--text-sub);margin-top:4px;}
-.trade-card .side{flex:1;text-align:center;}
-.trade-card .side .emoji{font-size:28px;}
-.trade-card .side .qty{font-size:12px;font-weight:700;}
-.trade-card button{padding:8px 10px;font-size:12px;}
-.empty{text-align:center;color:var(--text-sub);font-size:13px;padding:24px 0;}
-
-/* ---- 設定 ---- */
-.settings-box{background:var(--bg-panel);border:1px solid var(--line);border-radius:16px;padding:16px;}
-.settings-box label{font-size:12px;color:var(--text-sub);display:block;margin-bottom:6px;}
-
-nav.bottom{
-  position:fixed;bottom:0;left:0;right:0;z-index:20;
-  display:flex;background:rgba(13,11,38,.95);backdrop-filter:blur(6px);
-  border-top:1px solid var(--line);
-  padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));
-}
-nav.bottom button{
-  flex:1;background:none;color:var(--text-sub);padding:8px 2px;font-size:11px;
-  display:flex;flex-direction:column;align-items:center;gap:2px;
-}
-nav.bottom button .ic{font-size:19px;}
-nav.bottom button.active{color:var(--accent-gold);}
-
-.modal-bg{position:fixed;inset:0;background:rgba(6,5,20,.85);z-index:200;display:none;align-items:center;justify-content:center;padding:20px;}
-.modal-bg.show{display:flex;}
-.modal-box{background:var(--bg-panel);border:1px solid var(--line);border-radius:18px;padding:22px;max-width:320px;width:100%;text-align:center;}
-.modal-box h3{margin:0 0 10px;}
-.modal-box p{font-size:13px;color:var(--text-sub);margin-bottom:14px;}
-
-:root:not([data-theme="light"]){color-scheme:dark;}
+h1,h2,.hand{font-family:'Kalam',cursive;}
+.wrap{max-width:520px;margin:0 auto;padding:14px 14px 90px;}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:6px;}
+h1{font-size:26px;margin:0;line-height:1.1;transform:rotate(-1deg);}
+.pill{background:var(--ink);color:var(--paper);border-radius:20px;padding:6px 12px;font-size:14px;display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.coin{color:var(--gold);}
+.userbar{display:flex;align-items:center;gap:8px;margin:10px 0 4px;font-size:14px;}
+.userbar input{border:none;border-bottom:2px solid var(--ink);background:transparent;color:var(--ink);font-family:inherit;font-size:14px;padding:2px 4px;width:120px;}
+nav{display:flex;gap:6px;margin:14px 0;overflow-x:auto;}
+nav button{flex:1;border:2px solid var(--ink);background:transparent;color:var(--ink);border-radius:10px;padding:9px 4px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;}
+nav button.active{background:var(--ink);color:var(--paper);}
+.card{border:2px solid var(--ink);border-radius:14px;padding:16px;margin-bottom:14px;background:rgba(255,255,255,.35);position:relative;}
+:root[data-theme="dark"] .card, @media (prefers-color-scheme:dark){.card{background:rgba(0,0,0,.15);}}
+.btn{border:2px solid var(--ink);background:var(--accent);color:#fff;border-radius:10px;padding:12px 18px;font-weight:700;font-family:inherit;font-size:15px;cursor:pointer;width:100%;}
+.btn.secondary{background:transparent;color:var(--ink);}
+.btn:disabled{opacity:.4;}
+.muted{opacity:.65;font-size:13px;}
+/* gacha */
+.machine{text-align:center;padding:10px 0 4px;}
+.capsule{width:110px;height:110px;margin:0 auto 10px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff8,transparent 40%),conic-gradient(from 0deg,var(--rainbow1),var(--rainbow2),var(--rainbow3),var(--rainbow4),var(--rainbow5),var(--rainbow1));border:3px solid var(--ink);animation:spin 6s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.gachaRow{display:flex;gap:8px;}
+/* overlay reveal */
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;z-index:50;flex-direction:column;}
+#overlay.show{display:flex;}
+.revealCard{width:230px;background:var(--paper);border:3px solid var(--ink);border-radius:16px;padding:18px;text-align:center;transform:scale(.3);opacity:0;transition:transform .45s cubic-bezier(.2,1.6,.4,1),opacity .3s;}
+.revealCard.pop{transform:scale(1);opacity:1;}
+.revealCard img{width:150px;height:150px;object-fit:contain;border-radius:10px;background:#fff;}
+.rarityTag{display:inline-block;margin-top:8px;padding:4px 12px;border-radius:20px;font-weight:700;font-size:13px;}
+.r-normal{background:#999;color:#fff;}
+.r-color{background:var(--rc,#e0622a);color:#fff;}
+.r-rainbow{background:conic-gradient(var(--rainbow1),var(--rainbow2),var(--rainbow3),var(--rainbow4),var(--rainbow5),var(--rainbow1));color:#fff;animation:huecyc 2s linear infinite;}
+@keyframes huecyc{to{filter:hue-rotate(360deg);}}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;}
+.flash.go{animation:flashpop .5s ease;}
+@keyframes flashpop{0%{opacity:1;}100%{opacity:0;}}
+.confetti{position:fixed;top:-10px;width:8px;height:14px;z-index:60;}
+/* dex grid */
+.dexGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.dexCell{border:2px solid var(--ink);border-radius:10px;padding:6px;text-align:center;font-size:11px;background:rgba(255,255,255,.3);}
+.dexCell img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:6px;background:#fff;}
+.dexCell.locked img{filter:brightness(0) opacity(.85);}
+.dexCell.locked{opacity:.55;}
+.dexCell .cnt{font-weight:700;margin-top:2px;}
+/* ufo */
+.ufoArea{position:relative;height:260px;border:2px dashed var(--ink);border-radius:14px;overflow:hidden;background:repeating-linear-gradient(90deg,transparent 0 39px,rgba(0,0,0,.05) 39px 40px);}
+.rail{position:absolute;top:10px;left:0;right:0;height:2px;background:var(--ink);}
+.claw{position:absolute;top:10px;width:34px;height:34px;transform:translateX(-50%);transition:left .05s linear;}
+.claw .arm{width:2px;height:0;background:var(--ink);margin:0 auto;}
+.claw .hand{width:30px;height:22px;border:3px solid var(--ink);border-top:none;border-radius:0 0 12px 12px;margin:0 auto;background:var(--paper);}
+.prizeRow{position:absolute;bottom:14px;left:0;right:0;display:flex;justify-content:space-around;}
+.prize{width:34px;height:34px;border-radius:50%;background:var(--gold);border:2px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:16px;}
+.prize.target{box-shadow:0 0 0 3px var(--accent);}
+/* trade */
+.tradeItem{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);padding:8px 0;}
+.tradeItem img{width:42px;height:42px;border-radius:8px;object-fit:contain;background:#fff;border:1px solid var(--ink);}
+select,input[type=number]{font-family:inherit;border:2px solid var(--ink);border-radius:8px;padding:6px;background:transparent;color:var(--ink);}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:20px;font-size:14px;z-index:70;opacity:0;transition:opacity .3s;}
+.toast.show{opacity:1;}
 </style>
 </head>
 <body>
+<div class="wrap">
+  <header>
+    <h1>なんでも<br>コレクション</h1>
+    <div class="pill"><span class="coin">●</span><span id="coinDisp">0</span></div>
+  </header>
+  <div class="userbar">
+    <span>👤</span><input id="unameInput" placeholder="ユーザー名" maxlength="12">
+    <button class="btn secondary" style="width:auto;padding:6px 10px;font-size:12px;" id="saveNameBtn">決定</button>
+    <span class="muted" id="nameStatus"></span>
+  </div>
 
-<header class="top">
-  <h1>なんでもコレクション</h1>
-  <div class="currency-pill"><span class="coin"></span><span id="currencyDisplay">0</span></div>
-</header>
+  <nav>
+    <button class="tab active" data-tab="gacha">ガチャ</button>
+    <button class="tab" data-tab="ufo">UFO</button>
+    <button class="tab" data-tab="dex">図鑑</button>
+    <button class="tab" data-tab="trade">トレード</button>
+  </nav>
 
-<main>
-
-  <!-- ホーム: UFOキャッチャー -->
-  <section class="screen active" id="screen-home">
-    <h2 class="section-title">UFOキャッチャー(通貨ゲット)</h2>
-    <div class="crane-box">
-      <div class="crane-stage" id="craneStage">
-        <div class="crane-rail"></div>
-        <div class="crane-claw" id="craneClaw" style="left:20px;height:20px;">
-          <div class="head">🪝</div>
-        </div>
-        <div class="prize-row" id="prizeRow"></div>
-      </div>
-      <div class="crane-result" id="craneResult">ボタンを押してアームを止めよう!</div>
-      <button class="btn-primary" id="craneBtn">キャッチ!</button>
-      <div class="hint">何回でも挑戦OK。景品の真上で止めると成功率アップ。</div>
+  <section id="tab-gacha" class="card machine">
+    <div class="capsule"></div>
+    <h2 style="margin:4px 0;">ガチャガチャ</h2>
+    <p class="muted">通常(多)・色付き(レア)・レインボー(激レア)</p>
+    <div class="gachaRow">
+      <button class="btn" id="pull1">1回 (50●)</button>
+      <button class="btn secondary" id="pull10">10回 (450●)</button>
     </div>
   </section>
 
-  <!-- ガチャ -->
-  <section class="screen" id="screen-gacha">
-    <h2 class="section-title">ガチャ (1回 100 コイン)</h2>
-    <div class="gacha-box">
-      <div class="gacha-machine" id="gachaMachine">🎰</div>
-      <div class="gacha-buttons">
-        <button class="btn-primary" id="gachaBtn1" style="flex:1">1回引く</button>
-        <button class="btn-secondary" id="gachaBtn10" style="flex:1">10連 (980)</button>
-      </div>
-      <div class="hint">ノーマル(よく出る) → カラー(単色・レア) → レインボー(超激レア)</div>
+  <section id="tab-ufo" class="card" style="display:none;">
+    <h2 style="margin:0 0 8px;">UFOキャッチャー</h2>
+    <p class="muted">左右に動くアームを止めてコインをゲット！何回でも挑戦OK</p>
+    <div class="ufoArea" id="ufoArea">
+      <div class="rail"></div>
+      <div class="claw" id="claw"><div class="arm" id="armLine"></div><div class="hand"></div></div>
+      <div class="prizeRow" id="prizeRow"></div>
     </div>
+    <button class="btn" id="grabBtn" style="margin-top:10px;">つかむ！</button>
   </section>
 
-  <!-- 図鑑 -->
-  <section class="screen" id="screen-zukan">
-    <h2 class="section-title">図鑑</h2>
-    <div class="filter-row" id="zukanFilters"></div>
-    <div class="zukan-grid" id="zukanGrid"></div>
+  <section id="tab-dex" class="card" style="display:none;">
+    <h2 style="margin:0 0 8px;">図鑑</h2>
+    <p class="muted" id="dexSummary">所持中...</p>
+    <div class="dexGrid" id="dexGrid"></div>
   </section>
 
-  <!-- トレード -->
-  <section class="screen" id="screen-trade">
-    <h2 class="section-title">トレード出品</h2>
-    <div class="trade-form">
-      <label>渡すキャラ(所持しているもの)</label>
-      <select id="tradeOfferChar"></select>
-      <label>渡す個数</label>
-      <input type="number" id="tradeOfferQty" min="1" value="1">
-      <label>欲しいキャラ</label>
-      <select id="tradeWantChar"></select>
-      <label>欲しい個数</label>
-      <input type="number" id="tradeWantQty" min="1" value="1">
-      <button class="btn-primary" id="tradeCreateBtn" style="margin-top:12px;">出品する</button>
+  <section id="tab-trade" class="card" style="display:none;">
+    <h2 style="margin:0 0 8px;">トレード</h2>
+    <div id="tradeForm">
+      <p class="muted">出品するキャラ</p>
+      <select id="offerSelect"></select>
+      <p class="muted" style="margin-top:8px;">欲しいキャラ</p>
+      <select id="wantSelect"></select>
+      <button class="btn" id="postTradeBtn" style="margin-top:10px;">出品する</button>
     </div>
-    <h2 class="section-title">出品中のトレード</h2>
+    <hr style="border-color:var(--line);margin:14px 0;">
     <div id="tradeList"></div>
   </section>
-
-  <!-- 設定 -->
-  <section class="screen" id="screen-settings">
-    <h2 class="section-title">ユーザー設定</h2>
-    <div class="settings-box">
-      <label>ユーザーネーム</label>
-      <input type="text" id="usernameInput" maxlength="14">
-      <button class="btn-primary" id="usernameSaveBtn" style="margin-top:12px;">保存する</button>
-      <p class="hint" id="uidDisplay" style="margin-top:14px;"></p>
-    </div>
-  </section>
-
-</main>
-
-<nav class="bottom">
-  <button class="nav-btn active" data-screen="home"><span class="ic">🕹️</span>ホーム</button>
-  <button class="nav-btn" data-screen="gacha"><span class="ic">🎰</span>ガチャ</button>
-  <button class="nav-btn" data-screen="zukan"><span class="ic">📖</span>図鑑</button>
-  <button class="nav-btn" data-screen="trade"><span class="ic">🔁</span>トレード</button>
-  <button class="nav-btn" data-screen="settings"><span class="ic">⚙️</span>設定</button>
-</nav>
-
-<div class="result-overlay" id="resultOverlay">
-  <div class="result-card" id="resultCard">
-    <span class="emoji" id="resultEmoji"></span>
-    <div class="name" id="resultName"></div>
-    <span class="rarity-tag" id="resultRarityTag"></span>
-  </div>
-  <button class="btn-secondary" id="resultCloseBtn" style="margin-top:22px;">閉じる</button>
 </div>
 
-<div class="modal-bg" id="usernameModal">
-  <div class="modal-box">
-    <h3>ようこそ!</h3>
-    <p>コレクションで使うユーザーネームを決めてください</p>
-    <input type="text" id="usernameModalInput" maxlength="14" placeholder="例: たろう">
-    <button class="btn-primary" id="usernameModalSave" style="margin-top:14px;">はじめる</button>
+<div id="overlay">
+  <div class="revealCard" id="revealCard">
+    <img id="revealImg" src="">
+    <div class="hand" id="revealName" style="font-size:20px;"></div>
+    <div class="rarityTag" id="revealTag"></div>
   </div>
+  <button class="btn" id="closeReveal" style="width:160px;margin-top:20px;">とじる</button>
 </div>
+<div class="toast" id="toast"></div>
 
 <script>
-/* ===================== Firebase 初期化 ===================== */
 const firebaseConfig = {
   apiKey: "AIzaSyBAjqK2MDDptqzhH_-J4TmPF8beXFgQJ9M",
   authDomain: "hiraikun2.firebaseapp.com",
@@ -323,450 +172,284 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-let uid = null;
-let userDoc = null;           // {username, currency}
-let userCollection = {};      // {charId: count}
-let allCharacters = [];       // [{id, name, rarity, colorHex, emoji, totalMinted}]
-let currentFilter = 'all';
-
-/* ===================== レアリティ定義 ===================== */
-const RARITY_INFO = {
-  normal:  {label:'ノーマル',  color:'#b9b6e0', weightTier:75},
-  red:     {label:'カラー(赤)', color:'#ff5d5d', weightTier:23/5},
-  blue:    {label:'カラー(青)', color:'#4fd6ff', weightTier:23/5},
-  green:   {label:'カラー(緑)', color:'#5dffa0', weightTier:23/5},
-  yellow:  {label:'カラー(黄)', color:'#ffe45d', weightTier:23/5},
-  purple:  {label:'カラー(紫)', color:'#b95dff', weightTier:23/5},
-  rainbow: {label:'レインボー', color:'#ffd166', weightTier:2},
-};
-const COLOR_TIERS = ['red','blue','green','yellow','purple'];
-
-const SEED_CHARACTERS = [
-  ...['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵'].map((e,i)=>({name:'どうぶつ'+(i+1),rarity:'normal',emoji:e})),
-  ...COLOR_TIERS.flatMap(c => [1,2,3].map(n => ({
-    name:{red:'あか',blue:'あお',green:'みどり',yellow:'きいろ',purple:'むらさき'}[c]+'のせいれい'+n,
-    rarity:c,
-    emoji: {red:'🔴',blue:'🔵',green:'🟢',yellow:'🟡',purple:'🟣'}[c]
-  }))),
-  {name:'にじのりゅう',rarity:'rainbow',emoji:'🐲'},
-  {name:'にじのふぉにっくす',rarity:'rainbow',emoji:'🔥'},
-  {name:'にじのゆにこーん',rarity:'rainbow',emoji:'🦄'},
+const CHARS = __CHAR_DATA__;
+const RARITIES = [
+  {key:'normal', label:'ノーマル', weight:70},
+  {key:'color',  label:'色付き',   weight:25},
+  {key:'rainbow',label:'レインボー',weight:5}
 ];
+const COLOR_HUES = [0,120,200,270,320,45];
 
-/* ===================== 起動 ===================== */
-auth.onAuthStateChanged(async (user) => {
-  if (!user) { auth.signInAnonymously(); return; }
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),1800);
+}
+function weightedPick(){
+  const total = RARITIES.reduce((s,r)=>s+r.weight,0);
+  let n = Math.random()*total;
+  for(const r of RARITIES){ if(n<r.weight) return r; n-=r.weight; }
+  return RARITIES[0];
+}
+function keyFor(charId,rarity){return charId+'_'+rarity;}
+function charImgFiltered(char, rarityKey, hue){
+  if(rarityKey==='normal') return `<img src="${char.img}">`;
+  if(rarityKey==='color') return `<img src="${char.img}" style="filter:sepia(1) saturate(6) hue-rotate(${hue}deg);">`;
+  return `<img src="${char.img}" style="filter:saturate(4) hue-rotate(0deg);animation:huecyc 2.5s linear infinite;">`;
+}
+
+let uid=null, username=null, coins=0, inventory={};
+
+// tabs
+document.querySelectorAll('nav .tab').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('nav .tab').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  ['gacha','ufo','dex','trade'].forEach(id=>document.getElementById('tab-'+id).style.display = (id===b.dataset.tab?'block':'none'));
+  if(b.dataset.tab==='dex') renderDex();
+  if(b.dataset.tab==='trade') { renderTradeSelects(); renderTrades(); }
+}));
+
+// auth & user doc
+auth.signInAnonymously().catch(e=>toast('接続エラー: '+e.message));
+auth.onAuthStateChanged(async user=>{
+  if(!user) return;
   uid = user.uid;
-  await ensureCharacterSeed();
-  await loadCharacters();
-  await loadUserDoc();
-  await loadUserCollection();
-  refreshCurrencyDisplay();
-  renderZukanFilters();
-  renderZukan();
-  renderTradeSelects();
-  loadTrades();
-  buildCraneStage();
-});
-
-async function ensureCharacterSeed(){
-  const snap = await db.collection('characters').limit(1).get();
-  if (!snap.empty) return;
-  const batch = db.batch();
-  SEED_CHARACTERS.forEach(c => {
-    const ref = db.collection('characters').doc();
-    batch.set(ref, {...c, totalMinted:0});
-  });
-  await batch.commit();
-}
-
-async function loadCharacters(){
-  const snap = await db.collection('characters').get();
-  allCharacters = snap.docs.map(d => ({id:d.id, ...d.data()}));
-}
-
-async function loadUserDoc(){
-  const ref = db.collection('users').doc(uid);
-  const snap = await ref.get();
-  if (!snap.exists){
-    userDoc = {username:'', currency:500};
-    await ref.set(userDoc);
-    document.getElementById('usernameModal').classList.add('show');
+  const snap = await db.collection('users').doc(uid).get();
+  if(snap.exists){
+    const d = snap.data();
+    username = d.username||null; coins = d.coins||0; inventory = d.inventory||{};
+    if(username) document.getElementById('unameInput').value = username;
   } else {
-    userDoc = snap.data();
-    if (!userDoc.username) document.getElementById('usernameModal').classList.add('show');
+    await db.collection('users').doc(uid).set({coins:100, inventory:{}, createdAt:Date.now()});
+    coins = 100;
   }
-  document.getElementById('usernameInput').value = userDoc.username || '';
-  document.getElementById('uidDisplay').textContent = 'ID: ' + uid.slice(0,10) + '…';
-}
+  updateCoinDisp();
+  renderDex();
+});
 
-async function loadUserCollection(){
-  const snap = await db.collection('users').doc(uid).collection('collection').get();
-  userCollection = {};
-  snap.docs.forEach(d => userCollection[d.id] = d.data().count);
-}
+document.getElementById('saveNameBtn').addEventListener('click', async ()=>{
+  const val = document.getElementById('unameInput').value.trim();
+  if(!val){toast('名前を入力してね'); return;}
+  const status = document.getElementById('nameStatus');
+  try{
+    await db.runTransaction(async tx=>{
+      const nameRef = db.collection('usernames').doc(val);
+      const nameSnap = await tx.get(nameRef);
+      if(nameSnap.exists && nameSnap.data().uid!==uid) throw new Error('taken');
+      tx.set(nameRef, {uid});
+      tx.update(db.collection('users').doc(uid), {username: val});
+    });
+    username = val; status.textContent='✔ 保存しました';
+  }catch(e){ status.textContent = e.message==='taken' ? '❌ 使用済みです' : 'エラー'; }
+});
 
-function refreshCurrencyDisplay(){
-  document.getElementById('currencyDisplay').textContent = userDoc.currency;
-}
+function updateCoinDisp(){ document.getElementById('coinDisp').textContent = coins; }
 
-/* ===================== ナビゲーション ===================== */
-document.querySelectorAll('.nav-btn').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-    document.getElementById('screen-'+btn.dataset.screen).classList.add('active');
-    if (btn.dataset.screen==='trade'){ renderTradeSelects(); loadTrades(); }
-    if (btn.dataset.screen==='zukan'){ renderZukan(); }
+async function saveUser(){
+  await db.collection('users').doc(uid).update({coins, inventory});
+}
+async function bumpGlobal(key){
+  const ref = db.collection('globalStats').doc(key);
+  await db.runTransaction(async tx=>{
+    const s = await tx.get(ref);
+    tx.set(ref, {total:(s.exists?s.data().total:0)+1});
   });
-});
-
-/* ===================== ユーザーネーム ===================== */
-async function saveUsername(name){
-  name = name.trim();
-  if (!name) return;
-  userDoc.username = name;
-  await db.collection('users').doc(uid).set({username:name}, {merge:true});
 }
-document.getElementById('usernameModalSave').addEventListener('click', async ()=>{
-  const v = document.getElementById('usernameModalInput').value;
-  if (!v.trim()) return;
-  await saveUsername(v);
-  document.getElementById('usernameInput').value = v.trim();
-  document.getElementById('usernameModal').classList.remove('show');
-});
-document.getElementById('usernameSaveBtn').addEventListener('click', async ()=>{
-  await saveUsername(document.getElementById('usernameInput').value);
-  document.getElementById('usernameSaveBtn').textContent = '保存しました!';
-  setTimeout(()=>document.getElementById('usernameSaveBtn').textContent='保存する',1200);
-});
 
-/* ===================== UFOキャッチャー ===================== */
-const PRIZES = ['🪙','💰','🎁','💎'];
-function buildCraneStage(){
-  const row = document.getElementById('prizeRow');
-  row.innerHTML = PRIZES.map(()=>`<span>${PRIZES[Math.floor(Math.random()*PRIZES.length)]}</span>`).join('');
-}
-let clawPos = 0, clawDir = 1, clawTimer = null, craneLocked = false;
-function startClaw(){
-  const stage = document.getElementById('craneStage');
-  const claw = document.getElementById('craneClaw');
-  clawTimer = setInterval(()=>{
-    const max = stage.clientWidth - 26;
-    clawPos += clawDir * 4;
-    if (clawPos >= max){clawPos = max; clawDir = -1;}
-    if (clawPos <= 0){clawPos = 0; clawDir = 1;}
-    claw.style.left = clawPos + 'px';
-  }, 16);
-}
-startClaw();
-
-document.getElementById('craneBtn').addEventListener('click', async ()=>{
-  if (craneLocked) return;
-  craneLocked = true;
-  clearInterval(clawTimer);
-  const btn = document.getElementById('craneBtn');
-  const claw = document.getElementById('craneClaw');
-  const stage = document.getElementById('craneStage');
-  btn.disabled = true;
-
-  // 掴みに行くアニメーション
-  claw.style.transition = 'height .4s ease';
-  claw.style.height = '150px';
-  await sleep(450);
-
-  // 中央への近さで成功率を決める(単純なミニゲーム性)
-  const center = stage.clientWidth/2;
-  const dist = Math.abs((clawPos+13) - center);
-  const successChance = Math.max(0.15, 0.85 - dist/ (stage.clientWidth/2) * 0.7);
-  const success = Math.random() < successChance;
-
-  claw.style.height = '20px';
-  await sleep(400);
-
-  if (success){
-    const reward = 15 + Math.floor(Math.random()*90);
-    userDoc.currency += reward;
-    await db.collection('users').doc(uid).set({currency:userDoc.currency}, {merge:true});
-    refreshCurrencyDisplay();
-    document.getElementById('craneResult').textContent = `やった!${reward} コイン ゲット!`;
-    document.getElementById('craneResult').style.color = 'var(--accent-gold)';
-  } else {
-    document.getElementById('craneResult').textContent = 'あーん、逃げられた…もう一度!';
-    document.getElementById('craneResult').style.color = 'var(--text-sub)';
+async function doPull(n){
+  if(!uid){toast('接続中...少し待ってね'); return;}
+  const cost = n===1?50:450;
+  if(coins<cost){toast('コインが足りません'); return;}
+  coins-=cost; updateCoinDisp();
+  const results=[];
+  for(let i=0;i<n;i++){
+    const rarity = weightedPick();
+    const char = CHARS[Math.floor(Math.random()*CHARS.length)];
+    const hue = COLOR_HUES[Math.floor(Math.random()*COLOR_HUES.length)];
+    const key = keyFor(char.id, rarity.key);
+    inventory[key] = (inventory[key]||0)+1;
+    bumpGlobal(key);
+    results.push({char,rarity,hue});
   }
-
-  claw.style.transition = '';
-  buildCraneStage();
-  startClaw();
-  await sleep(400);
-  btn.disabled = false;
-  craneLocked = false;
-});
-
-function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
-
-/* ===================== ガチャ ===================== */
-function pickRarity(){
-  const tiers = Object.entries(RARITY_INFO).filter(([k])=>k!=='rainbow' && !COLOR_TIERS.includes(k));
-  // build weighted pool: normal(75) + each color(23/5) + rainbow(2)
-  const pool = [['normal', RARITY_INFO.normal.weightTier]];
-  COLOR_TIERS.forEach(c => pool.push([c, RARITY_INFO[c].weightTier]));
-  pool.push(['rainbow', RARITY_INFO.rainbow.weightTier]);
-  const total = pool.reduce((s,[,w])=>s+w,0);
-  let r = Math.random()*total;
-  for (const [key,w] of pool){
-    if (r < w) return key;
-    r -= w;
+  await saveUser();
+  showReveal(results,0);
+}
+function showReveal(results, i){
+  const r = results[i];
+  const ov = document.getElementById('overlay'); ov.classList.add('show');
+  const card = document.getElementById('revealCard'); card.classList.remove('pop');
+  document.getElementById('revealImg').outerHTML = charImgFiltered(r.char, r.rarity.key, r.hue).replace('<img','<img id="revealImg"');
+  document.getElementById('revealName').textContent = r.char.name;
+  const tag = document.getElementById('revealTag');
+  tag.className = 'rarityTag r-'+r.rarity.key;
+  if(r.rarity.key==='color') tag.style.setProperty('--rc', `hsl(${r.hue},70%,45%)`);
+  tag.textContent = r.rarity.label;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>card.classList.add('pop')));
+  if(r.rarity.key==='rainbow') burstConfetti();
+  document.getElementById('closeReveal').onclick = ()=>{
+    ov.classList.remove('show');
+    if(i+1<results.length) setTimeout(()=>showReveal(results,i+1),150);
+  };
+}
+function burstConfetti(){
+  for(let i=0;i<40;i++){
+    const c=document.createElement('div'); c.className='confetti';
+    c.style.left=Math.random()*100+'vw';
+    c.style.background=`hsl(${Math.random()*360},80%,60%)`;
+    c.style.animation=`fall ${1+Math.random()*1.2}s linear forwards`;
+    document.body.appendChild(c);
+    setTimeout(()=>c.remove(),2500);
   }
-  return 'normal';
 }
-function pickCharacterOfRarity(rarity){
-  const list = allCharacters.filter(c=>c.rarity===rarity);
-  if (!list.length) return allCharacters[Math.floor(Math.random()*allCharacters.length)];
-  return list[Math.floor(Math.random()*list.length)];
-}
-async function drawGacha(cost){
-  if (userDoc.currency < cost){
-    alert('コインが足りません!UFOキャッチャーで稼ごう。');
-    return null;
-  }
-  userDoc.currency -= cost;
-  await db.collection('users').doc(uid).set({currency:userDoc.currency}, {merge:true});
-  refreshCurrencyDisplay();
+const styleFall=document.createElement('style');
+styleFall.textContent='@keyframes fall{to{transform:translateY(110vh) rotate(400deg);opacity:.2;}}';
+document.head.appendChild(styleFall);
 
-  const rarity = pickRarity();
-  const char = pickCharacterOfRarity(rarity);
+document.getElementById('pull1').addEventListener('click',()=>doPull(1));
+document.getElementById('pull10').addEventListener('click',()=>doPull(10));
 
-  // 所持数 +1
-  const newCount = (userCollection[char.id]||0) + 1;
-  userCollection[char.id] = newCount;
-  await db.collection('users').doc(uid).collection('collection').doc(char.id).set({count:newCount});
-
-  // 存在数(totalMinted) +1
-  await db.collection('characters').doc(char.id).update({
-    totalMinted: firebase.firestore.FieldValue.increment(1)
-  });
-  const localChar = allCharacters.find(c=>c.id===char.id);
-  if (localChar) localChar.totalMinted = (localChar.totalMinted||0)+1;
-
-  return char;
-}
-
-function showGachaResult(char){
-  const card = document.getElementById('resultCard');
-  card.classList.toggle('rainbow', char.rarity==='rainbow');
-  document.getElementById('resultEmoji').textContent = char.emoji;
-  document.getElementById('resultName').textContent = char.name;
-  const tag = document.getElementById('resultRarityTag');
-  tag.textContent = RARITY_INFO[char.rarity].label;
-  tag.style.background = RARITY_INFO[char.rarity].color;
-  tag.style.color = '#1a0a12';
-  document.getElementById('resultOverlay').classList.add('show');
-  if (char.rarity==='rainbow' || COLOR_TIERS.includes(char.rarity)) launchConfetti(char.rarity==='rainbow'?60:28);
-}
-document.getElementById('resultCloseBtn').addEventListener('click', ()=>{
-  document.getElementById('resultOverlay').classList.remove('show');
-  renderZukan();
-});
-
-function launchConfetti(n){
-  const layer = document.createElement('div');
-  layer.className = 'confetti';
-  const colors = ['#ff5d8f','#ffd166','#4fd6ff','#8f5dff','#5dffa0'];
-  for (let i=0;i<n;i++){
-    const s = document.createElement('span');
-    s.style.left = Math.random()*100+'vw';
-    s.style.background = colors[Math.floor(Math.random()*colors.length)];
-    s.style.animationDuration = (1.2+Math.random()*1.2)+'s';
-    s.style.animationDelay = (Math.random()*0.4)+'s';
-    layer.appendChild(s);
-  }
-  document.body.appendChild(layer);
-  setTimeout(()=>layer.remove(), 3000);
-}
-
-async function playGachaAnimation(){
-  const machine = document.getElementById('gachaMachine');
-  machine.classList.add('shake');
-  await sleep(550);
-  machine.classList.remove('shake');
-}
-
-document.getElementById('gachaBtn1').addEventListener('click', async ()=>{
-  const btns = [document.getElementById('gachaBtn1'), document.getElementById('gachaBtn10')];
-  btns.forEach(b=>b.disabled=true);
-  await playGachaAnimation();
-  const char = await drawGacha(100);
-  btns.forEach(b=>b.disabled=false);
-  if (char) showGachaResult(char);
-});
-
-document.getElementById('gachaBtn10').addEventListener('click', async ()=>{
-  const btns = [document.getElementById('gachaBtn1'), document.getElementById('gachaBtn10')];
-  if (userDoc.currency < 980){ alert('コインが足りません!'); return; }
-  btns.forEach(b=>b.disabled=true);
-  await playGachaAnimation();
-  let results = [];
-  for (let i=0;i<10;i++){
-    if (userDoc.currency < 98) break;
-    userDoc.currency -= 98;
-    const rarity = pickRarity();
-    const char = pickCharacterOfRarity(rarity);
-    const newCount = (userCollection[char.id]||0) + 1;
-    userCollection[char.id] = newCount;
-    await db.collection('users').doc(uid).collection('collection').doc(char.id).set({count:newCount});
-    await db.collection('characters').doc(char.id).update({totalMinted: firebase.firestore.FieldValue.increment(1)});
-    const lc = allCharacters.find(c=>c.id===char.id);
-    if (lc) lc.totalMinted = (lc.totalMinted||0)+1;
-    results.push(char);
-  }
-  await db.collection('users').doc(uid).set({currency:userDoc.currency}, {merge:true});
-  refreshCurrencyDisplay();
-  btns.forEach(b=>b.disabled=false);
-  // 一番レアなキャラを演出表示、その後まとめて結果をアラート的に一覧
-  results.sort((a,b)=> rarityRank(b.rarity)-rarityRank(a.rarity));
-  if (results[0]) showGachaResult(results[0]);
-  setTimeout(()=>{
-    alert('10連の結果:\n' + results.map(c=>`${c.emoji} ${c.name} (${RARITY_INFO[c.rarity].label})`).join('\n'));
-    renderZukan();
-  }, 300);
-});
-function rarityRank(r){ return r==='rainbow'?3 : (COLOR_TIERS.includes(r)?2:1); }
-
-/* ===================== 図鑑 ===================== */
-function renderZukanFilters(){
-  const el = document.getElementById('zukanFilters');
-  const cats = [['all','すべて'],['normal','ノーマル'],['red','赤'],['blue','青'],['green','緑'],['yellow','黄'],['purple','紫'],['rainbow','レインボー']];
-  el.innerHTML = cats.map(([k,l])=>`<button class="filter-chip ${k==='all'?'active':''}" data-f="${k}">${l}</button>`).join('');
-  el.querySelectorAll('.filter-chip').forEach(chip=>{
-    chip.addEventListener('click', ()=>{
-      el.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
-      chip.classList.add('active');
-      currentFilter = chip.dataset.f;
-      renderZukan();
+// dex
+function renderDex(){
+  const grid = document.getElementById('dexGrid'); grid.innerHTML='';
+  let owned=0, totalSlots=CHARS.length*RARITIES.length;
+  CHARS.forEach(char=>{
+    RARITIES.forEach(r=>{
+      const key = keyFor(char.id,r.key);
+      const count = inventory[key]||0;
+      if(count>0) owned++;
+      const cell = document.createElement('div');
+      cell.className = 'dexCell'+(count>0?'':' locked');
+      cell.innerHTML = charImgFiltered(char,r.key,120) + `<div>${char.name}</div><div class="muted">${r.label}</div><div class="cnt">×${count}</div>`;
+      grid.appendChild(cell);
     });
   });
-}
-function renderZukan(){
-  const grid = document.getElementById('zukanGrid');
-  const list = allCharacters.filter(c => currentFilter==='all' || c.rarity===currentFilter)
-    .sort((a,b)=> rarityRank(b.rarity)-rarityRank(a.rarity));
-  grid.innerHTML = list.map(c=>{
-    const owned = userCollection[c.id]||0;
-    const locked = owned===0;
-    return `<div class="zukan-card ${locked?'locked':''}">
-      <span class="emoji">${locked?'❔':c.emoji}</span>
-      <div class="name">${locked?'？？？':c.name}</div>
-      <div class="counts">所持 ${owned} / 存在 ${c.totalMinted||0}</div>
-    </div>`;
-  }).join('');
+  document.getElementById('dexSummary').textContent = `所持: ${owned} / ${totalSlots} 種類`;
 }
 
-/* ===================== トレード ===================== */
-function renderTradeSelects(){
-  const offerSel = document.getElementById('tradeOfferChar');
-  const wantSel = document.getElementById('tradeWantChar');
-  const owned = allCharacters.filter(c => (userCollection[c.id]||0) > 0);
-  offerSel.innerHTML = owned.length
-    ? owned.map(c=>`<option value="${c.id}">${c.emoji} ${c.name} (所持${userCollection[c.id]})</option>`).join('')
-    : `<option value="">所持キャラがありません</option>`;
-  wantSel.innerHTML = allCharacters.map(c=>`<option value="${c.id}">${c.emoji} ${c.name}</option>`).join('');
-}
-
-document.getElementById('tradeCreateBtn').addEventListener('click', async ()=>{
-  const offerCharId = document.getElementById('tradeOfferChar').value;
-  const offerQty = parseInt(document.getElementById('tradeOfferQty').value)||1;
-  const wantCharId = document.getElementById('tradeWantChar').value;
-  const wantQty = parseInt(document.getElementById('tradeWantQty').value)||1;
-  if (!offerCharId){ alert('渡せるキャラがありません。'); return; }
-  if ((userCollection[offerCharId]||0) < offerQty){ alert('所持数が足りません。'); return; }
-  if (offerCharId === wantCharId){ alert('同じキャラは交換できません。'); return; }
-
-  // エスクロー: 出品時に手元から引く
-  const newCount = userCollection[offerCharId] - offerQty;
-  userCollection[offerCharId] = newCount;
-  await db.collection('users').doc(uid).collection('collection').doc(offerCharId).set({count:newCount});
-
-  const offerChar = allCharacters.find(c=>c.id===offerCharId);
-  const wantChar = allCharacters.find(c=>c.id===wantCharId);
-  await db.collection('trades').add({
-    fromUid: uid,
-    fromUsername: userDoc.username || '名無し',
-    offerCharId, offerQty, offerEmoji: offerChar.emoji, offerName: offerChar.name,
-    wantCharId, wantQty, wantEmoji: wantChar.emoji, wantName: wantChar.name,
-    status: 'open',
-    createdAt: Date.now()
+// ufo catcher
+const prizes = ['🪙','💎','🪙','⭐','🪙'];
+let clawPos = 10, clawDir = 1, clawTimer=null, grabbing=false;
+function initUfo(){
+  const area = document.getElementById('ufoArea');
+  const row = document.getElementById('prizeRow'); row.innerHTML='';
+  const w = area.clientWidth||300;
+  prizes.forEach((p,i)=>{
+    const d=document.createElement('div'); d.className='prize'; d.textContent=p; d.dataset.idx=i;
+    row.appendChild(d);
   });
-  renderTradeSelects();
-  renderZukan();
-  loadTrades();
+  clawTimer = setInterval(()=>{
+    if(grabbing) return;
+    clawPos += clawDir*2.2;
+    if(clawPos>90||clawPos<10) clawDir*=-1;
+    document.getElementById('claw').style.left = clawPos+'%';
+  },20);
+}
+document.getElementById('grabBtn').addEventListener('click', async ()=>{
+  if(grabbing || !uid) return;
+  grabbing = true;
+  const claw = document.getElementById('claw');
+  const arm = document.getElementById('armLine');
+  const area = document.getElementById('ufoArea');
+  const prizesEls = [...document.querySelectorAll('.prize')];
+  let hit=null, best=999;
+  prizesEls.forEach(el=>{
+    const r = el.getBoundingClientRect(), a = area.getBoundingClientRect();
+    const pct = ((r.left+r.width/2)-a.left)/a.width*100;
+    const dist = Math.abs(pct-clawPos);
+    if(dist<best){best=dist; hit=el;}
+  });
+  const maxH = area.clientHeight-50;
+  let h=0;
+  const down = setInterval(()=>{
+    h+=10; arm.style.height=h+'px';
+    if(h>=maxH){
+      clearInterval(down);
+      const success = best<7;
+      if(success && hit){ hit.classList.add('target'); }
+      setTimeout(()=>{
+        const up = setInterval(async ()=>{
+          h-=10; arm.style.height=Math.max(0,h)+'px';
+          if(h<=0){
+            clearInterval(up);
+            grabbing=false;
+            if(success){
+              const gain = 5+Math.floor(Math.random()*16);
+              coins+=gain; updateCoinDisp(); await saveUser();
+              toast(`ゲット！ +${gain}コイン`);
+            } else {
+              toast('あーん、失敗！もう一回！');
+            }
+            if(hit) hit.classList.remove('target');
+          }
+        },12);
+      },300);
+    }
+  },12);
 });
+initUfo();
 
-async function loadTrades(){
-  const snap = await db.collection('trades').where('status','==','open').get();
-  const list = document.getElementById('tradeList');
-  const trades = snap.docs.map(d=>({id:d.id, ...d.data()}));
-  if (!trades.length){ list.innerHTML = '<div class="empty">出品中のトレードはありません</div>'; return; }
-  list.innerHTML = trades.map(t=>{
-    const isMine = t.fromUid === uid;
-    return `<div class="trade-card">
-      <div class="side"><span class="emoji">${t.offerEmoji}</span><div class="qty">${t.offerName} ×${t.offerQty}</div></div>
-      <div class="swap">🔁</div>
-      <div class="side"><span class="emoji">${t.wantEmoji}</span><div class="qty">${t.wantName} ×${t.wantQty}</div></div>
-      <div>
-        <div class="who">${t.fromUsername}</div>
-        ${isMine
-          ? `<button class="btn-secondary" data-cancel="${t.id}">取消</button>`
-          : `<button class="btn-primary" data-accept="${t.id}" style="padding:8px 10px;font-size:12px;">交換する</button>`}
-      </div>
-    </div>`;
-  }).join('');
-  list.querySelectorAll('[data-cancel]').forEach(b=>b.addEventListener('click', ()=>cancelTrade(b.dataset.cancel)));
-  list.querySelectorAll('[data-accept]').forEach(b=>b.addEventListener('click', ()=>acceptTrade(b.dataset.accept)));
+// trade
+function renderTradeSelects(){
+  const offer = document.getElementById('offerSelect'); const want = document.getElementById('wantSelect');
+  offer.innerHTML=''; want.innerHTML='';
+  const owned = Object.keys(inventory).filter(k=>inventory[k]>0);
+  if(owned.length===0){ offer.innerHTML='<option>所持キャラなし</option>'; }
+  owned.forEach(k=>{
+    const [cid,rk] = k.split('_'); const c = CHARS.find(x=>x.id===cid); const r = RARITIES.find(x=>x.key===rk);
+    const opt = document.createElement('option'); opt.value=k; opt.textContent=`${c.name} (${r.label}) ×${inventory[k]}`;
+    offer.appendChild(opt);
+  });
+  CHARS.forEach(c=>RARITIES.forEach(r=>{
+    const opt=document.createElement('option'); opt.value=keyFor(c.id,r.key); opt.textContent=`${c.name} (${r.label})`;
+    want.appendChild(opt);
+  }));
 }
-
-async function cancelTrade(tradeId){
-  const ref = db.collection('trades').doc(tradeId);
-  const snap = await ref.get();
-  if (!snap.exists) return;
-  const t = snap.data();
-  if (t.fromUid !== uid) return;
-  // 返却
-  const newCount = (userCollection[t.offerCharId]||0) + t.offerQty;
-  userCollection[t.offerCharId] = newCount;
-  await db.collection('users').doc(uid).collection('collection').doc(t.offerCharId).set({count:newCount});
-  await ref.update({status:'cancelled'});
-  renderTradeSelects(); renderZukan(); loadTrades();
+document.getElementById('postTradeBtn').addEventListener('click', async ()=>{
+  if(!username){toast('先にユーザー名を決めてね'); return;}
+  const offerKey = document.getElementById('offerSelect').value;
+  const wantKey = document.getElementById('wantSelect').value;
+  if(!offerKey || !(inventory[offerKey]>0)){toast('出品できるキャラがありません'); return;}
+  await db.collection('trades').add({
+    fromUid:uid, fromName:username, offerKey, wantKey, status:'open', createdAt:Date.now()
+  });
+  toast('出品しました！');
+  renderTrades();
+});
+async function renderTrades(){
+  const list = document.getElementById('tradeList'); list.innerHTML='読み込み中...';
+  const snap = await db.collection('trades').where('status','==','open').orderBy('createdAt','desc').limit(30).get();
+  list.innerHTML='';
+  snap.forEach(doc=>{
+    const t = doc.data();
+    const [ocid,ork] = t.offerKey.split('_'); const oc = CHARS.find(x=>x.id===ocid); const orr = RARITIES.find(x=>x.key===ork);
+    const [wcid,wrk] = t.wantKey.split('_'); const wc = CHARS.find(x=>x.id===wcid); const wrr = RARITIES.find(x=>x.key===wrk);
+    const row = document.createElement('div'); row.className='tradeItem';
+    row.innerHTML = `${charImgFiltered(oc,ork==='color'?'color':ork,60)}
+      <div style="flex:1;font-size:13px;">
+        <b>${t.fromName}</b> さんの出品<br>${oc.name}(${orr.label}) → ${wc.name}(${wrr.label})希望
+      </div>`;
+    if(t.fromUid!==uid){
+      const btn=document.createElement('button'); btn.className='btn'; btn.style.width='auto'; btn.textContent='交換';
+      btn.onclick = ()=>acceptTrade(doc.id,t);
+      row.appendChild(btn);
+    }
+    list.appendChild(row);
+  });
+  if(snap.empty) list.innerHTML='<p class="muted">現在出品はありません</p>';
 }
-
-async function acceptTrade(tradeId){
-  const ref = db.collection('trades').doc(tradeId);
-  const snap = await ref.get();
-  if (!snap.exists) return;
-  const t = snap.data();
-  if (t.fromUid === uid){ alert('自分の出品には交換できません。'); return; }
-  if ((userCollection[t.wantCharId]||0) < t.wantQty){ alert('必要なキャラの所持数が足りません。'); return; }
-
-  // 自分: 要求キャラを渡し、出品キャラを受け取る
-  const myWantNew = userCollection[t.wantCharId] - t.wantQty;
-  userCollection[t.wantCharId] = myWantNew;
-  await db.collection('users').doc(uid).collection('collection').doc(t.wantCharId).set({count:myWantNew});
-
-  const myOfferNew = (userCollection[t.offerCharId]||0) + t.offerQty;
-  userCollection[t.offerCharId] = myOfferNew;
-  await db.collection('users').doc(uid).collection('collection').doc(t.offerCharId).set({count:myOfferNew});
-
-  // 相手: 要求キャラ(wantChar)を受け取る
-  const otherWantRef = db.collection('users').doc(t.fromUid).collection('collection').doc(t.wantCharId);
-  const otherWantSnap = await otherWantRef.get();
-  const otherWantNew = (otherWantSnap.exists ? otherWantSnap.data().count : 0) + t.wantQty;
-  await otherWantRef.set({count:otherWantNew});
-
-  await ref.update({status:'completed', acceptedBy:uid});
-  renderTradeSelects(); renderZukan(); loadTrades();
-  alert('トレード成立!');
+async function acceptTrade(id,t){
+  if(!(inventory[t.wantKey]>0)){toast('交換用のキャラを持っていません'); return;}
+  try{
+    await db.runTransaction(async tx=>{
+      const tRef = db.collection('trades').doc(id);
+      const tSnap = await tx.get(tRef);
+      if(!tSnap.exists || tSnap.data().status!=='open') throw new Error('すでに成立済みです');
+      tx.update(tRef, {status:'completed', toUid:uid});
+    });
+    inventory[t.wantKey]--; inventory[t.offerKey]=(inventory[t.offerKey]||0)+1;
+    await saveUser();
+    toast('トレード成立！');
+    renderTrades(); renderDex();
+  }catch(e){ toast(e.message); }
 }
 </script>
 </body>
