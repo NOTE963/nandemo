@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>なんでもコレクション</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Yusei+Magic&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#12102a; --bg2:#1c1840; --panel:#221d4d;
+  --gold:#ffd166; --cyan:#4dd0e1; --magenta:#ff6ad5;
+  --ink:#f4f1ff; --sub:#a99fe0; --line:#3a3170;
+  --normal:#9d94e0; --color-tier:#4dd0e1; --rainbow: conic-gradient(from 0deg,#ff5f6d,#ffc371,#f9f871,#4dfc9c,#4dd0e1,#7c6bff,#ff6ad5,#ff5f6d);
+}
+*{box-sizing:border-box;}
+body{margin:0;background:radial-gradient(circle at 50% -10%,#2a2260,var(--bg) 60%);color:var(--ink);font-family:'Zen Maru Gothic',sans-serif;min-height:100vh;padding-bottom:80px;}
+h1,h2,h3{font-family:'Yusei Magic',sans-serif;margin:0 0 8px;}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:rgba(18,16,42,.85);backdrop-filter:blur(6px);position:sticky;top:0;z-index:20;border-bottom:1px solid var(--line);}
+.brand{font-family:'Yusei Magic',sans-serif;font-size:18px;color:var(--gold);}
+.coinbox{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);padding:6px 12px;border-radius:20px;font-weight:700;}
+.coinbox .ic{filter:drop-shadow(0 0 4px var(--gold));}
+main{max-width:640px;margin:0 auto;padding:16px;}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:16px;}
+button{font-family:inherit;cursor:pointer;border:none;border-radius:14px;padding:12px 18px;font-weight:700;font-size:15px;}
+.btn-main{background:linear-gradient(135deg,var(--gold),#ff9a5a);color:#2a1900;box-shadow:0 4px 0 #b5601c;}
+.btn-main:active{transform:translateY(2px);box-shadow:0 2px 0 #b5601c;}
+.btn-sub{background:var(--bg2);color:var(--ink);border:1px solid var(--line);}
+.btn-sub:active{transform:translateY(1px);}
+.navtabs{position:fixed;bottom:0;left:0;right:0;display:flex;background:rgba(18,16,42,.95);border-top:1px solid var(--line);z-index:30;}
+.navtabs button{flex:1;background:none;border-radius:0;padding:10px 4px;font-size:12px;color:var(--sub);display:flex;flex-direction:column;align-items:center;gap:2px;}
+.navtabs button.active{color:var(--gold);}
+.navtabs .emoji{font-size:20px;}
+.view{display:none;}
+.view.active{display:block;animation:fadeIn .25s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+/* Gacha */
+.gacha-stage{position:relative;height:230px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;}
+.capsule-machine{width:150px;height:150px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#3a3170,var(--bg2) 70%);border:4px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:56px;box-shadow:0 0 24px rgba(255,209,102,.3);}
+.capsule-machine.shaking{animation:shake .5s infinite;}
+@keyframes shake{0%,100%{transform:translate(0,0) rotate(0);}20%{transform:translate(-4px,2px) rotate(-3deg);}40%{transform:translate(4px,-2px) rotate(3deg);}60%{transform:translate(-3px,1px) rotate(-2deg);}80%{transform:translate(3px,-1px) rotate(2deg);}}
+.rate-list{display:flex;justify-content:space-around;font-size:12px;color:var(--sub);margin-bottom:12px;}
+.rate-list span b{color:var(--ink);}
+.flash-overlay{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:90;}
+.flash-overlay.go{animation:flashpop .5s ease;}
+@keyframes flashpop{0%{opacity:0;}15%{opacity:1;}100%{opacity:0;}}
+.reveal-wrap{position:fixed;inset:0;background:rgba(10,8,25,.92);display:none;align-items:center;justify-content:center;z-index:95;flex-direction:column;gap:16px;}
+.reveal-wrap.show{display:flex;}
+.reveal-card{width:230px;height:300px;border-radius:20px;background:var(--panel);border:3px solid var(--normal);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;position:relative;overflow:hidden;transform:scale(.5) rotateY(90deg);opacity:0;transition:transform .5s cubic-bezier(.2,1.4,.4,1),opacity .3s;}
+.reveal-card.pop{transform:scale(1) rotateY(0);opacity:1;}
+.reveal-card.tier-color{border-color:var(--color-tier);box-shadow:0 0 40px var(--color-tier);}
+.reveal-card.tier-rainbow{border:3px solid transparent;background-image:linear-gradient(var(--panel),var(--panel)),var(--rainbow);background-origin:border-box;background-clip:padding-box,border-box;box-shadow:0 0 50px #ff6ad5,0 0 90px #4dd0e1;}
+.reveal-card img{width:150px;height:150px;object-fit:contain;background:#0d0c22;border-radius:14px;margin-bottom:10px;}
+.reveal-tier-label{font-family:'Yusei Magic';font-size:13px;letter-spacing:2px;}
+.reveal-tier-label.n{color:var(--normal);}
+.reveal-tier-label.c{color:var(--color-tier);}
+.reveal-tier-label.r{background:var(--rainbow);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:900;}
+.sparkle{position:absolute;border-radius:50%;background:#fff;pointer-events:none;opacity:0;}
+.reveal-wrap.show .sparkle{animation:spark 1.1s ease-out forwards;}
+@keyframes spark{0%{opacity:1;transform:scale(0) translate(0,0);}100%{opacity:0;transform:scale(1) translate(var(--dx),var(--dy));}}
+
+/* Dex */
+.dex-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.dex-item{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:8px;text-align:center;}
+.dex-item img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:10px;background:#0d0c22;}
+.dex-item.locked img{filter:grayscale(1) brightness(.3);}
+.dex-item .cnt{font-size:11px;color:var(--sub);margin-top:4px;}
+.dex-item .cnt b{color:var(--gold);}
+.tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:8px;margin-top:3px;}
+.tag.n{background:#332c6b;color:var(--normal);}
+.tag.c{background:#123a40;color:var(--color-tier);}
+.tag.r{background:var(--rainbow);color:#1a1030;font-weight:900;}
+
+/* UFO catcher */
+#ufoCanvas{width:100%;background:linear-gradient(#0d0c30,#1a1550);border-radius:16px;display:block;touch-action:none;}
+.ufo-controls{display:flex;gap:10px;margin-top:12px;}
+.ufo-controls button{flex:1;}
+.toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--gold);padding:10px 20px;border-radius:20px;font-weight:700;z-index:80;opacity:0;transition:opacity .3s;}
+.toast.show{opacity:1;}
+
+/* trade */
+.trade-row{display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px;}
+.trade-row img{width:44px;height:44px;object-fit:contain;background:#0d0c22;border-radius:8px;}
+.trade-row .grow{flex:1;font-size:13px;}
+select,input[type=text]{background:var(--bg2);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px;font-family:inherit;width:100%;}
+label{font-size:12px;color:var(--sub);display:block;margin:8px 0 4px;}
+
+.name-modal{position:fixed;inset:0;background:rgba(10,8,25,.95);display:flex;align-items:center;justify-content:center;z-index:99;}
+.name-modal .card{width:280px;text-align:center;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">✦ なんでもコレクション</div>
+  <div class="coinbox"><span class="ic">🪙</span><span id="coinDisplay">-</span></div>
+</div>
+
+<main>
+
+  <!-- GACHA -->
+  <section class="view active" id="view-gacha">
+    <div class="card">
+      <h2>ガチャ</h2>
+      <div class="gacha-stage">
+        <div class="capsule-machine" id="capsuleMachine">🎁</div>
+      </div>
+      <div class="rate-list">
+        <span>ノーマル <b>80%</b></span>
+        <span style="color:var(--color-tier)">カラー <b>18%</b></span>
+        <span style="background:var(--rainbow);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:900">レインボー <b>2%</b></span>
+      </div>
+      <button class="btn-main" style="width:100%" id="gachaBtn">1回まわす（100🪙）</button>
+    </div>
+  </section>
+
+  <!-- UFO -->
+  <section class="view" id="view-ufo">
+    <div class="card">
+      <h2>UFOキャッチャー</h2>
+      <p style="color:var(--sub);font-size:13px;margin-top:0">アームを動かして「つかむ！」でコインをゲット。何度でも遊べるよ。</p>
+      <canvas id="ufoCanvas" width="320" height="260"></canvas>
+      <div class="ufo-controls">
+        <button class="btn-sub" id="ufoLeft">◀ 左</button>
+        <button class="btn-main" id="ufoGrab">つかむ！</button>
+        <button class="btn-sub" id="ufoRight">右 ▶</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- DEX -->
+  <section class="view" id="view-dex">
+    <div class="card">
+      <h2>図鑑</h2>
+      <p style="color:var(--sub);font-size:12px;margin-top:0">所持数＝あなたの数／存在数＝全ユーザー合計の排出数</p>
+      <div class="dex-grid" id="dexGrid"></div>
+    </div>
+  </section>
+
+  <!-- TRADE -->
+  <section class="view" id="view-trade">
+    <div class="card">
+      <h3>出品する</h3>
+      <label>渡すキャラ（2体以上持っているものだけ）</label>
+      <select id="offerCharSelect"></select>
+      <label>欲しいキャラ</label>
+      <select id="wantCharSelect"></select>
+      <button class="btn-main" style="width:100%;margin-top:10px" id="postTradeBtn">出品する</button>
+    </div>
+    <div class="card">
+      <h3>トレード一覧</h3>
+      <div id="tradeList"></div>
+    </div>
+  </section>
+
+  <!-- MY PAGE -->
+  <section class="view" id="view-my">
+    <div class="card">
+      <h2 id="myNameHead">-</h2>
+      <p style="color:var(--sub)">所持コイン：<b id="myCoins" style="color:var(--gold)">-</b></p>
+      <label>ユーザーネームを変更</label>
+      <input type="text" id="newNameInput" maxlength="12" placeholder="新しい名前">
+      <button class="btn-sub" style="margin-top:8px;width:100%" id="renameBtn">変更する</button>
+    </div>
+  </section>
+
+</main>
+
+<div class="navtabs">
+  <button data-view="gacha" class="active"><span class="emoji">🎰</span>ガチャ</button>
+  <button data-view="ufo"><span class="emoji">🕹️</span>UFO</button>
+  <button data-view="dex"><span class="emoji">📖</span>図鑑</button>
+  <button data-view="trade"><span class="emoji">🔁</span>トレード</button>
+  <button data-view="my"><span class="emoji">👤</span>マイページ</button>
+</div>
+
+<div class="flash-overlay" id="flashOverlay"></div>
+<div class="reveal-wrap" id="revealWrap">
+  <div class="reveal-card" id="revealCard">
+    <div class="reveal-tier-label" id="revealTierLabel"></div>
+    <img id="revealImg" src="" alt="">
+    <div id="revealName" style="font-weight:700"></div>
+  </div>
+  <button class="btn-main" id="revealCloseBtn">閉じる</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="name-modal" id="nameModal" style="display:none">
+  <div class="card">
+    <h3>ようこそ！</h3>
+    <p style="color:var(--sub);font-size:13px">ユーザーネームを決めてね</p>
+    <input type="text" id="firstNameInput" maxlength="12" placeholder="例：ひらい">
+    <button class="btn-main" style="width:100%;margin-top:12px" id="firstNameBtn">はじめる</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getAuth, signInAnonymously, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot,
+  collection, addDoc, query, where, orderBy, runTransaction,
+  serverTimestamp, increment, deleteDoc
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBAjqK2MDDptqzhH_-J4TmPF8beXFgQJ9M",
+  authDomain: "hiraikun2.firebaseapp.com",
+  projectId: "hiraikun2",
+  storageBucket: "hiraikun2.firebasestorage.app",
+  messagingSenderId: "441487054471",
+  appId: "1:441487054471:web:0cbab1e6723721deef0a22",
+  measurementId: "G-HRLMZH4ZSP"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+/* ---------- キャラ定義 ---------- */
+const CHARACTERS = [
+  { id:"char01", name:"らくがき少女",   tier:"normal",  img:"images/char01_normal.png" },
+  { id:"char02", name:"にんじんくん",   tier:"normal",  img:"images/char02_normal.jpg" },
+  { id:"char03", name:"ぼうひとふたり", tier:"normal",  img:"images/char03_normal.jpg" },
+  { id:"char04", name:"はしる鹿",      tier:"normal",  img:"images/char04_normal.jpg" },
+  { id:"char06", name:"ねこがお",      tier:"normal",  img:"images/char06_normal.jpg" },
+  { id:"char07", name:"つんつんヘア",   tier:"normal",  img:"images/char07_normal.jpg" },
+  { id:"char08", name:"まんまるスマイル", tier:"normal", img:"images/char08_normal.jpg" },
+  { id:"char09", name:"めがねさん",    tier:"normal",  img:"images/char09_normal.jpg" },
+  { id:"char10", name:"りんごおばけ",   tier:"normal",  img:"images/char10_normal.jpg" },
+  { id:"char12", name:"にっこり太陽",   tier:"normal",  img:"images/char12_normal.jpg" },
+  { id:"char11", name:"きゅうきゅうバッグ", tier:"color", img:"images/char11_color.jpg" },
+  { id:"char13", name:"ペンキバケツ",   tier:"color",  img:"images/char13_color.jpg" },
+  { id:"char05", name:"ウマFCのエース", tier:"rainbow",img:"images/char05_rainbow.jpg" },
+];
+const CHAR_MAP = Object.fromEntries(CHARACTERS.map(c=>[c.id,c]));
+const TIER_LABEL = { normal:"NORMAL", color:"COLOR ★", rainbow:"★ RAINBOW ★" };
+const TIER_WEIGHTS = { normal:80, color:18, rainbow:2 };
+const GACHA_COST = 100;
+
+/* ---------- state ---------- */
+let uid = null;
+let userData = null; // {username, coins, characters:{}}
+let unsubUser = null;
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+/* ---------- auth & user doc ---------- */
+signInAnonymously(auth).catch(e=>{ console.error(e); toast("ログインに失敗しました"); });
+
+onAuthStateChanged(auth, async (user)=>{
+  if(!user) return;
+  uid = user.uid;
+  const uref = doc(db,"users",uid);
+  const snap = await getDoc(uref);
+  if(!snap.exists()){
+    document.getElementById('nameModal').style.display='flex';
+  } else {
+    startUserListener();
+  }
+});
+
+document.getElementById('firstNameBtn').onclick = async ()=>{
+  const name = document.getElementById('firstNameInput').value.trim();
+  if(!name){ toast("名前を入力してね"); return; }
+  await setDoc(doc(db,"users",uid),{
+    username:name, coins:500, characters:{}, createdAt: serverTimestamp()
+  });
+  document.getElementById('nameModal').style.display='none';
+  startUserListener();
+};
+
+function startUserListener(){
+  if(unsubUser) unsubUser();
+  unsubUser = onSnapshot(doc(db,"users",uid), (snap)=>{
+    userData = snap.data();
+    if(!userData) return;
+    document.getElementById('coinDisplay').textContent = userData.coins ?? 0;
+    document.getElementById('myCoins').textContent = userData.coins ?? 0;
+    document.getElementById('myNameHead').textContent = userData.username ?? "-";
+    renderDex();
+    renderTradeSelects();
+  });
+}
+
+/* ---------- global stats (存在数) ---------- */
+let globalStats = {};
+onSnapshot(doc(db,"stats","global"), (snap)=>{
+  globalStats = (snap.exists() ? snap.data().characters : {}) || {};
+  renderDex();
+});
+
+/* ---------- nav ---------- */
+document.querySelectorAll('.navtabs button').forEach(btn=>{
+  btn.onclick = ()=>{
+    document.querySelectorAll('.navtabs button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+  };
+});
+
+/* ---------- gacha ---------- */
+function pickTier(){
+  const r = Math.random()*100;
+  if(r < TIER_WEIGHTS.rainbow) return "rainbow";
+  if(r < TIER_WEIGHTS.rainbow + TIER_WEIGHTS.color) return "color";
+  return "normal";
+}
+function pickCharacterByTier(tier){
+  const pool = CHARACTERS.filter(c=>c.tier===tier);
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
+document.getElementById('gachaBtn').onclick = async ()=>{
+  if(!userData){ toast("読み込み中..."); return; }
+  if((userData.coins||0) < GACHA_COST){ toast("コインが足りないよ！UFOキャッチャーで稼ごう"); return; }
+
+  const machine = document.getElementById('capsuleMachine');
+  machine.classList.add('shaking');
+  await new Promise(r=>setTimeout(r,900));
+  machine.classList.remove('shaking');
+
+  const tier = pickTier();
+  const chosen = pickCharacterByTier(tier);
+
+  // update firestore: spend coins, add character, bump global stat
+  try{
+    await updateDoc(doc(db,"users",uid), {
+      coins: increment(-GACHA_COST),
+      [`characters.${chosen.id}`]: increment(1)
+    });
+    await setDoc(doc(db,"stats","global"), {
+      characters: { [chosen.id]: increment(1) }
+    }, { merge:true });
+  }catch(e){ console.error(e); toast("エラーが発生しました"); return; }
+
+  showReveal(chosen, tier);
+};
+
+function showReveal(chosen, tier){
+  const flash = document.getElementById('flashOverlay');
+  flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go');
+
+  const wrap = document.getElementById('revealWrap');
+  const card = document.getElementById('revealCard');
+  const label = document.getElementById('revealTierLabel');
+  card.className = 'reveal-card';
+  if(tier==='color') card.classList.add('tier-color');
+  if(tier==='rainbow') card.classList.add('tier-rainbow');
+  label.className = 'reveal-tier-label ' + (tier==='normal'?'n':tier==='color'?'c':'r');
+  label.textContent = TIER_LABEL[tier];
+  document.getElementById('revealImg').src = chosen.img;
+  document.getElementById('revealName').textContent = chosen.name;
+
+  // clear old sparkles
+  wrap.querySelectorAll('.sparkle').forEach(s=>s.remove());
+  if(tier!=='normal'){
+    const n = tier==='rainbow' ? 26 : 14;
+    for(let i=0;i<n;i++){
+      const s = document.createElement('div');
+      s.className='sparkle';
+      const size = 4+Math.random()*6;
+      s.style.width=s.style.height=size+'px';
+      s.style.left='50%'; s.style.top='50%';
+      const ang = Math.random()*Math.PI*2, dist=80+Math.random()*140;
+      s.style.setProperty('--dx', Math.cos(ang)*dist+'px');
+      s.style.setProperty('--dy', Math.sin(ang)*dist+'px');
+      s.style.background = tier==='rainbow' ? `hsl(${Math.random()*360},90%,70%)` : 'var(--color-tier)';
+      s.style.animationDelay = (Math.random()*.2)+'s';
+      wrap.appendChild(s);
+    }
+  }
+
+  wrap.classList.add('show');
+  requestAnimationFrame(()=>requestAnimationFrame(()=>card.classList.add('pop')));
+}
+document.getElementById('revealCloseBtn').onclick = ()=>{
+  document.getElementById('revealWrap').classList.remove('show');
+  document.getElementById('revealCard').classList.remove('pop');
+};
+
+/* ---------- dex ---------- */
+function renderDex(){
+  if(!userData) return;
+  const grid = document.getElementById('dexGrid');
+  grid.innerHTML = '';
+  CHARACTERS.forEach(c=>{
+    const owned = (userData.characters && userData.characters[c.id]) || 0;
+    const total = (globalStats && globalStats[c.id]) || 0;
+    const div = document.createElement('div');
+    div.className = 'dex-item' + (owned===0 ? ' locked' : '');
+    const tagClass = c.tier==='normal'?'n':c.tier==='color'?'c':'r';
+    div.innerHTML = `
+      <img src="${c.img}" alt="${c.name}">
+      <div style="font-size:12px;font-weight:700;margin-top:4px">${owned>0?c.name:'？？？'}</div>
+      <span class="tag ${tagClass}">${TIER_LABEL[c.tier]}</span>
+      <div class="cnt">所持 <b>${owned}</b>／存在 <b>${total}</b></div>
+    `;
+    grid.appendChild(div);
+  });
+}
+
+/* ---------- trade ---------- */
+function renderTradeSelects(){
+  if(!userData) return;
+  const offerSel = document.getElementById('offerCharSelect');
+  const wantSel = document.getElementById('wantCharSelect');
+  offerSel.innerHTML=''; wantSel.innerHTML='';
+  CHARACTERS.forEach(c=>{
+    const owned = (userData.characters && userData.characters[c.id]) || 0;
+    if(owned>=2){
+      const o=document.createElement('option'); o.value=c.id; o.textContent=`${c.name}（${owned}体）`;
+      offerSel.appendChild(o);
+    }
+    const w=document.createElement('option'); w.value=c.id; w.textContent=c.name;
+    wantSel.appendChild(w);
+  });
+}
+
+document.getElementById('postTradeBtn').onclick = async ()=>{
+  const offerCharId = document.getElementById('offerCharSelect').value;
+  const wantCharId = document.getElementById('wantCharSelect').value;
+  if(!offerCharId){ toast("出品できるキャラがないよ（2体以上必要）"); return; }
+  if(offerCharId===wantCharId){ toast("同じキャラは選べないよ"); return; }
+  await addDoc(collection(db,"trades"),{
+    fromUid: uid, fromUsername: userData.username,
+    offerCharId, wantCharId, status:"open", createdAt: serverTimestamp()
+  });
+  toast("出品したよ！");
+};
+
+onSnapshot(query(collection(db,"trades"), where("status","==","open"), orderBy("createdAt","desc")), (snap)=>{
+  const list = document.getElementById('tradeList');
+  list.innerHTML='';
+  if(snap.empty){ list.innerHTML = '<p style="color:var(--sub);font-size:13px">出品はまだないよ</p>'; return; }
+  snap.forEach(d=>{
+    const t = d.data();
+    const offerChar = CHAR_MAP[t.offerCharId];
+    const wantChar = CHAR_MAP[t.wantCharId];
+    if(!offerChar || !wantChar) return;
+    const row = document.createElement('div');
+    row.className='trade-row';
+    const isMine = t.fromUid===uid;
+    row.innerHTML = `
+      <img src="${offerChar.img}">
+      <div class="grow">
+        <div><b>${t.fromUsername}</b> の出品</div>
+        <div style="color:var(--sub)">${offerChar.name} → ${wantChar.name} と交換</div>
+      </div>
+    `;
+    const btn = document.createElement('button');
+    if(isMine){
+      btn.textContent='取り消す'; btn.className='btn-sub';
+      btn.onclick = ()=> deleteDoc(doc(db,"trades",d.id));
+    } else {
+      btn.textContent='交換する'; btn.className='btn-main';
+      btn.onclick = ()=> acceptTrade(d.id, t);
+    }
+    row.appendChild(btn);
+    list.appendChild(row);
+  });
+});
+
+async function acceptTrade(tradeId, t){
+  if(!userData) return;
+  const myWantCount = (userData.characters && userData.characters[t.wantCharId]) || 0;
+  if(myWantCount<1){ toast("そのキャラを持っていないよ"); return; }
+  try{
+    await runTransaction(db, async (tx)=>{
+      const tradeRef = doc(db,"trades",tradeId);
+      const tradeSnap = await tx.get(tradeRef);
+      if(!tradeSnap.exists() || tradeSnap.data().status!=="open") throw new Error("この出品はもう終了しています");
+      const fromRef = doc(db,"users", t.fromUid);
+      const toRef = doc(db,"users", uid);
+      const fromSnap = await tx.get(fromRef);
+      const toSnap = await tx.get(toRef);
+      const fromData = fromSnap.data(); const toData = toSnap.data();
+      const fromHave = (fromData.characters && fromData.characters[t.offerCharId]) || 0;
+      const toHave = (toData.characters && toData.characters[t.wantCharId]) || 0;
+      if(fromHave<1 || toHave<1) throw new Error("交換できませんでした");
+      tx.update(fromRef, {
+        [`characters.${t.offerCharId}`]: increment(-1),
+        [`characters.${t.wantCharId}`]: increment(1)
+      });
+      tx.update(toRef, {
+        [`characters.${t.wantCharId}`]: increment(-1),
+        [`characters.${t.offerCharId}`]: increment(1)
+      });
+      tx.update(tradeRef, { status:"done", toUid: uid, completedAt: serverTimestamp() });
+    });
+    toast("交換できたよ！");
+  }catch(e){
+    console.error(e); toast(e.message || "交換に失敗しました");
+  }
+}
+
+/* ---------- my page ---------- */
+document.getElementById('renameBtn').onclick = async ()=>{
+  const name = document.getElementById('newNameInput').value.trim();
+  if(!name){ toast("名前を入力してね"); return; }
+  await updateDoc(doc(db,"users",uid),{ username:name });
+  document.getElementById('newNameInput').value='';
+  toast("名前を変更したよ");
+};
+
+/* ---------- UFO catcher (canvas) ---------- */
+const canvas = document.getElementById('ufoCanvas');
+const ctx = canvas.getContext('2d');
+let clawX = 160, clawDir = 1, grabbing = false, grabPhase = 0;
+let coins = [];
+function spawnCoins(){
+  coins = [];
+  const values = [10,10,20,20,30,50];
+  for(let i=0;i<6;i++){
+    coins.push({
+      x: 30 + Math.random()*260,
+      y: 190 + Math.random()*40,
+      r: 16, val: values[i], grabbed:false, taken:false
+    });
+  }
+}
+spawnCoins();
+
+function drawUfo(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // rail
+  ctx.fillStyle = '#3a3170';
+  ctx.fillRect(0,20,canvas.width,6);
+  // claw arm
+  const armY = grabbing ? 30 + grabPhase*140 : 30;
+  ctx.strokeStyle = '#e0dbff'; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.moveTo(clawX,26); ctx.lineTo(clawX,armY); ctx.stroke();
+  // claw
+  ctx.strokeStyle = '#ffd166'; ctx.lineWidth=5; ctx.lineCap='round';
+  const spread = grabbing && grabPhase>0.85 ? 6 : 16;
+  ctx.beginPath();
+  ctx.moveTo(clawX-spread, armY); ctx.lineTo(clawX-spread, armY+18); ctx.lineTo(clawX-4, armY+8);
+  ctx.moveTo(clawX+spread, armY); ctx.lineTo(clawX+spread, armY+18); ctx.lineTo(clawX+4, armY+8);
+  ctx.stroke();
+  // floor
+  ctx.fillStyle = '#0d0c30';
+  ctx.fillRect(0,230,canvas.width,30);
+  // coins
+  coins.forEach(c=>{
+    if(c.taken) return;
+    ctx.beginPath();
+    ctx.arc(c.x, c.grabbed ? armY+14 : c.y, c.r, 0, Math.PI*2);
+    ctx.fillStyle = '#ffd166';
+    ctx.fill();
+    ctx.strokeStyle = '#b5601c'; ctx.lineWidth=2; ctx.stroke();
+    ctx.fillStyle = '#5a3c00'; ctx.font='bold 11px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(c.val, c.x, (c.grabbed ? armY+14 : c.y)+4);
+    if(c.grabbed) c.x = clawX;
+  });
+  requestAnimationFrame(drawUfo);
+}
+drawUfo();
+
+document.getElementById('ufoLeft').onclick = ()=>{ if(!grabbing) clawX = Math.max(24, clawX-18); };
+document.getElementById('ufoRight').onclick = ()=>{ if(!grabbing) clawX = Math.min(296, clawX+18); };
+
+document.getElementById('ufoGrab').onclick = async ()=>{
+  if(grabbing) return;
+  grabbing = true; grabPhase = 0;
+  const target = coins.find(c=>!c.taken && Math.abs(c.x-clawX) < c.r);
+  const step = ()=>{
+    grabPhase += 0.045;
+    if(grabPhase>=1){
+      if(target){ target.grabbed = true; }
+      setTimeout(()=>{ retract(target); }, 350);
+      return;
+    }
+    requestAnimationFrame(step);
+  };
+  step();
+};
+
+function retract(target){
+  const step = ()=>{
+    grabPhase -= 0.03;
+    if(grabPhase<=0){
+      grabPhase = 0; grabbing = false;
+      if(target){
+        target.taken = true;
+        awardCoins(target.val);
+        if(coins.every(c=>c.taken)) setTimeout(spawnCoins, 500);
+      } else {
+        toast("残念、逃げられた…！");
+      }
+      return;
+    }
+    requestAnimationFrame(step);
+  };
+  step();
+}
+
+async function awardCoins(val){
+  toast(`🪙 +${val} コインゲット！`);
+  try{
+    await updateDoc(doc(db,"users",uid), { coins: increment(val) });
+  }catch(e){ console.error(e); }
+}
+</script>
+</body>
+</html>
