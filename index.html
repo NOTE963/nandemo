@@ -335,6 +335,26 @@ function computeRainbowCount(owned){
   return c;
 }
 
+// アプデ前からのユーザーはFirestoreにrainbowCountフィールドが無く、
+// orderByではそのまま除外されてランキングに出ない。
+// 誰かがアプリを開くたびに、全ユーザー分を所持カードから計算し直してズレを直す。
+async function migrateRainbowCounts(){
+  try{
+    const snap = await db.collection('users').get();
+    const batch = db.batch();
+    let changes = 0;
+    snap.forEach(doc=>{
+      const d = doc.data();
+      const computed = computeRainbowCount(d.owned);
+      if(d.rainbowCount !== computed){
+        batch.update(doc.ref, {rainbowCount: computed});
+        changes++;
+      }
+    });
+    if(changes > 0) await batch.commit();
+  }catch(e){ /* 権限がない場合などは静かに無視 */ }
+}
+
 function initApp(){
   userData.owned = userData.owned || {};
   const computed = computeRainbowCount(userData.owned);
@@ -344,6 +364,7 @@ function initApp(){
     userData.rainbowCount = computed;
     saveUser();
   }
+  migrateRainbowCounts(); // 他のユーザー分も直す（バックグラウンド実行）
   document.getElementById('app').style.display='block';
   document.getElementById('welcomeMsg').textContent = `ようこそ、${userData.username}さん！`;
   document.getElementById('meName').textContent = userData.username;
