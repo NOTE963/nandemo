@@ -83,6 +83,9 @@ input[type=text]{width:100%; padding:12px; border-radius:10px; border:1px solid 
 .trade-item .info{flex:1; font-size:12px; color:var(--muted);}
 small.hint{color:var(--muted); font-size:11px; display:block; margin-top:4px;}
 select{width:100%; padding:10px; border-radius:10px; background:#00000044; color:#fff; border:1px solid #ffffff33; margin-bottom:8px;}
+input[type=range]{-webkit-appearance:none; height:8px; border-radius:5px; background:#ffffff22; outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:22px; height:22px; border-radius:50%; background:var(--accent2); cursor:pointer; border:2px solid #fff;}
+input[type=range]::-moz-range-thumb{width:22px; height:22px; border-radius:50%; background:var(--accent2); cursor:pointer; border:2px solid #fff;}
 .toast{position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#000000cc; padding:10px 18px; border-radius:20px; font-size:13px; z-index:40; opacity:0; transition:opacity .3s;}
 .toast.show{opacity:1;}
 .rank-row{display:flex; align-items:center; gap:10px; padding:8px 4px; border-bottom:1px solid #ffffff14; font-size:13px;}
@@ -193,6 +196,10 @@ select{width:100%; padding:10px; border-radius:10px; background:#00000044; color
       <img id="sellImg" style="width:100px; height:100px; border-radius:14px; object-fit:cover; margin-bottom:10px;">
       <h2 id="sellName"></h2>
       <p style="font-size:13px; color:var(--muted);" id="sellInfo"></p>
+      <div style="margin:14px 0;">
+        <input type="range" id="sellQty" min="1" value="1" style="width:100%;">
+        <p style="font-size:13px; margin-top:6px;">売却数: <b id="sellQtyLabel" style="color:var(--gold);">1</b>枚 ／ 合計 <b id="sellTotalLabel" style="color:var(--gold);">0</b>💎</p>
+      </div>
       <button class="btn" id="sellConfirmBtn">売却する</button>
       <button class="btn secondary" id="sellCancelBtn" style="margin-top:8px;">キャンセル</button>
     </div>
@@ -671,18 +678,35 @@ function openSellDialog(char, variant, key, owned){
   document.getElementById('sellImg').style.filter = variantFilter(variant);
   document.getElementById('sellName').textContent = `${char.name}（${variantLabel(variant)}）`;
   const price = sellPrice(variant);
-  document.getElementById('sellInfo').textContent = `所持数: ${owned}枚 ／ 売却で💎${price}もらえます`;
+  document.getElementById('sellInfo').textContent = `所持数: ${owned}枚 ／ 1枚あたり💎${price}`;
+
+  const qtySlider = document.getElementById('sellQty');
+  const qtyLabel = document.getElementById('sellQtyLabel');
+  const totalLabel = document.getElementById('sellTotalLabel');
+  qtySlider.min = 1;
+  qtySlider.max = owned;
+  qtySlider.value = 1;
+  const updateQtyDisplay = ()=>{
+    qtyLabel.textContent = qtySlider.value;
+    totalLabel.textContent = Number(qtySlider.value) * price;
+  };
+  qtySlider.oninput = updateQtyDisplay;
+  updateQtyDisplay();
+
   const confirmBtn = document.getElementById('sellConfirmBtn');
   confirmBtn.onclick = async ()=>{
-    userData.owned[key] = (userData.owned[key]||0) - 1;
-    userData.gems += price;
-    if(variant==='rainbow') userData.rainbowCount = Math.max(0, (userData.rainbowCount||0) - 1);
+    const qty = Math.min(Number(qtySlider.value), userData.owned[key]||0);
+    if(qty < 1) return;
+    const gain = qty * price;
+    userData.owned[key] = (userData.owned[key]||0) - qty;
+    userData.gems += gain;
+    if(variant==='rainbow') userData.rainbowCount = Math.max(0, (userData.rainbowCount||0) - qty);
     await saveUser();
     // 存在数もその分減らす
-    db.collection('stats').doc(key).set({total: firebase.firestore.FieldValue.increment(-1)}, {merge:true}).catch(()=>{});
+    db.collection('stats').doc(key).set({total: firebase.firestore.FieldValue.increment(-qty)}, {merge:true}).catch(()=>{});
     renderGems(); renderDex(); buildTradeSelects();
     document.getElementById('sellOverlay').style.display = 'none';
-    toast(`売却して💎+${price}！`);
+    toast(`${qty}枚売却して💎+${gain}！`);
   };
   document.getElementById('sellOverlay').style.display = 'flex';
 }
