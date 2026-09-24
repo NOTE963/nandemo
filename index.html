@@ -308,11 +308,16 @@ function toast(msg){
 auth.onAuthStateChanged(async (user)=>{
   if(user){
     uid = user.uid;
-    const doc = await db.collection('users').doc(uid).get();
-    if(doc.exists){
-      userData = doc.data();
-      initApp();
-    } else {
+    try{
+      const doc = await db.collection('users').doc(uid).get();
+      if(doc.exists){
+        userData = doc.data();
+        initApp();
+      } else {
+        document.getElementById('loginWrap').style.display='flex';
+      }
+    }catch(e){
+      toast('データ取得エラー: ' + e.message);
       document.getElementById('loginWrap').style.display='flex';
     }
   } else {
@@ -323,10 +328,18 @@ auth.onAuthStateChanged(async (user)=>{
 document.getElementById('startBtn').onclick = async ()=>{
   const name = document.getElementById('unameInput').value.trim();
   if(!name){ toast('なまえを入力してね'); return; }
-  userData = {username:name, gems:50, owned:{}, rainbowCount:0, createdAt: Date.now()};
-  await db.collection('users').doc(uid).set(userData);
-  document.getElementById('loginWrap').style.display='none';
-  initApp();
+  if(!uid){ toast('ログイン準備中です。少し待ってからもう一度押してね'); return; }
+  const btn = document.getElementById('startBtn');
+  btn.disabled = true; btn.textContent = '作成中...';
+  try{
+    userData = {username:name, gems:50, owned:{}, rainbowCount:0, createdAt: Date.now()};
+    await db.collection('users').doc(uid).set(userData);
+    document.getElementById('loginWrap').style.display='none';
+    initApp();
+  }catch(e){
+    toast('作成できませんでした: ' + e.message);
+    btn.disabled = false; btn.textContent = 'はじめる';
+  }
 };
 
 function computeRainbowCount(owned){
@@ -345,8 +358,10 @@ async function migrateRainbowCounts(){
     let changes = 0;
     snap.forEach(doc=>{
       const d = doc.data();
-      const computed = computeRainbowCount(d.owned);
-      if(d.rainbowCount !== computed){
+      // フィールドが本当に無いドキュメントだけを埋める。
+      // 既に値がある場合は上書きしない（他の処理と競合してゼロ化するのを防ぐため）
+      if(d.rainbowCount === undefined){
+        const computed = computeRainbowCount(d.owned);
         batch.update(doc.ref, {rainbowCount: computed});
         changes++;
       }
@@ -751,9 +766,8 @@ function listenRankings(){
   db.collection('users').orderBy('rainbowCount','desc').limit(10).onSnapshot(snap=>{
     const box = document.getElementById('rankRainbow');
     box.innerHTML = '';
-    let i=0, shown=0;
+    let shown=0;
     snap.forEach(doc=>{
-      i++;
       const d = doc.data();
       if(!d.rainbowCount) return;
       shown++;
