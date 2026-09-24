@@ -146,20 +146,44 @@ select{width:100%; padding:10px; border-radius:10px; background:#00000044; color
         <div class="rarityTag" id="rarityTag">NORMAL</div>
         <img id="gachaResult">
       </div>
-      <button class="btn" id="gachaBtn">ガチャを回す（💎10）</button>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" id="gachaBtn1" style="flex:1;">単発（💎10）</button>
+        <button class="btn" id="gachaBtn10" style="flex:1;">10連（💎100）</button>
+        <button class="btn" id="gachaBtn100" style="flex:1;">100連（💎1000）</button>
+      </div>
       <p style="font-size:11px; color:var(--muted); margin-top:8px; line-height:1.6;">
         ノーマル：よく出る　｜　カラー(赤・青・緑など)：レア　｜　<span style="background:linear-gradient(90deg,red,orange,yellow,green,blue,violet); -webkit-background-clip:text; background-clip:text; color:transparent; font-weight:800;">レインボー</span>：激レア
       </p>
     </div>
   </section>
 
+  <div id="resultsOverlay" style="display:none; position:fixed; inset:0; z-index:50; background:#0a0616ee; padding:16px; overflow-y:auto;">
+    <h2 style="margin-bottom:10px;">🎉 ガチャ結果</h2>
+    <div class="grid" id="resultsGrid"></div>
+    <button class="btn" id="closeResultsBtn" style="margin-top:14px;">閉じる</button>
+  </div>
+
   <section id="s-dex" class="screen">
     <div class="card-box">
       <h2>📖 図鑑</h2>
-      <p style="font-size:11px; color:var(--muted);">所持数 / 全体の存在数（みんなが集めた合計）</p>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <button class="btn secondary" id="dexModeOwned" style="flex:1; padding:8px;">所持数を大きく表示</button>
+        <button class="btn secondary" id="dexModeTotal" style="flex:1; padding:8px;">存在数を大きく表示</button>
+      </div>
+      <p style="font-size:11px; color:var(--muted);">所持しているカードをタップすると売却できます</p>
       <div class="grid" id="dexGrid"></div>
     </div>
   </section>
+
+  <div id="sellOverlay" style="display:none; position:fixed; inset:0; z-index:50; background:#0a0616ee; align-items:center; justify-content:center; padding:20px;">
+    <div class="card-box" style="max-width:320px; width:100%; text-align:center;">
+      <img id="sellImg" style="width:100px; height:100px; border-radius:14px; object-fit:cover; margin-bottom:10px;">
+      <h2 id="sellName"></h2>
+      <p style="font-size:13px; color:var(--muted);" id="sellInfo"></p>
+      <button class="btn" id="sellConfirmBtn">売却する</button>
+      <button class="btn secondary" id="sellCancelBtn" style="margin-top:8px;">キャンセル</button>
+    </div>
+  </div>
 
   <section id="s-trade" class="screen">
     <div class="card-box">
@@ -379,60 +403,133 @@ document.getElementById('dailyBtn').onclick = async ()=>{
   toast('デイリーボーナス💎+20！');
 };
 
-// ==== ガチャ ====
+// ==== ガチャ（単発・10連・100連） ====
 let gachaBusy = false;
-document.getElementById('gachaBtn').onclick = async ()=>{
-  if(gachaBusy) return;
-  if(userData.gems < 10){ toast('ジェムが足りないよ！コインタイムで稼ごう'); return; }
-  gachaBusy = true;
-  const btn = document.getElementById('gachaBtn');
-  btn.disabled = true;
-  userData.gems -= 10; renderGems(); await saveUser();
 
+function drawOne(){
+  const char = CHARS[Math.floor(Math.random()*CHARS.length)];
+  const variant = rollVariant();
+  return {char, variant, key: cardKey(char.id, variant)};
+}
+
+async function commitPulls(results){
+  // ユーザー所持数を更新（1回で保存）
+  results.forEach(r=>{
+    userData.owned[r.key] = (userData.owned[r.key]||0) + 1;
+  });
+  await saveUser();
+  // グローバル存在数をバッチで加算
+  const counts = {};
+  results.forEach(r=> counts[r.key] = (counts[r.key]||0) + 1);
+  const batch = db.batch();
+  Object.keys(counts).forEach(key=>{
+    const ref = db.collection('stats').doc(key);
+    batch.set(ref, {total: firebase.firestore.FieldValue.increment(counts[key])}, {merge:true});
+  });
+  await batch.commit().catch(()=>{});
+}
+
+async function playSingleAnimation(result){
   const resImg = document.getElementById('gachaResult');
   const flash = document.getElementById('gachaFlash');
   const rays = document.getElementById('gachaRays');
   const tag = document.getElementById('rarityTag');
   resImg.style.opacity='0'; resImg.style.transform='scale(.3) rotate(-15deg)';
-  resImg.className=''; tag.style.opacity='0';
-  rays.style.opacity='0'; rays.style.animation='none';
+  tag.style.opacity='0'; rays.style.opacity='0'; rays.style.animation='none';
 
-  const char = CHARS[Math.floor(Math.random()*CHARS.length)];
-  const variant = rollVariant();
-  resImg.src = char.img;
-  resImg.style.filter = variantFilter(variant);
+  resImg.src = result.char.img;
+  resImg.style.filter = variantFilter(result.variant);
 
   rays.style.opacity='1'; rays.style.animation='spin 3s linear infinite';
   flash.style.animation='none'; void flash.offsetWidth; flash.style.animation='flashAnim .5s ease';
-  await new Promise(r=>setTimeout(r,350));
+  await new Promise(r=>setTimeout(r,300));
   resImg.style.transition='transform .6s cubic-bezier(.2,1.6,.4,1), opacity .3s';
   resImg.style.opacity='1'; resImg.style.transform='scale(1) rotate(0)';
-  if(variant==='rainbow') resImg.classList.add('v-rainbow-glow');
-  tag.textContent = variantLabel(variant);
-  tag.style.background = variant==='normal' ? '#666' : variant==='rainbow' ? 'linear-gradient(90deg,red,orange,yellow,green,blue,violet)' : (COLOR_VARIANTS.find(c=>c.key===variant)||{}).key;
+  tag.textContent = variantLabel(result.variant);
+  tag.style.background = result.variant==='normal' ? '#666' : result.variant==='rainbow' ? 'linear-gradient(90deg,red,orange,yellow,green,blue,violet)' : '#f5a';
   tag.style.color = '#000';
   tag.style.opacity='1';
-
-  // 保存
-  const key = cardKey(char.id, variant);
-  userData.owned[key] = (userData.owned[key]||0) + 1;
-  await saveUser();
-  // グローバル存在数カウント（transaction）
-  const statRef = db.collection('stats').doc(key);
-  db.runTransaction(async (tx)=>{
-    const d = await tx.get(statRef);
-    const cur = d.exists ? (d.data().total||0) : 0;
-    tx.set(statRef, {total: cur+1}, {merge:true});
-  }).catch(()=>{});
-
-  toast(`${char.name}（${variantLabel(variant)}）をゲット！`);
-  await new Promise(r=>setTimeout(r,300));
+  toast(`${result.char.name}（${variantLabel(result.variant)}）をゲット！`);
+  await new Promise(r=>setTimeout(r,600));
   rays.style.animation='none'; rays.style.opacity='0';
-  btn.disabled = false;
-  gachaBusy = false;
+}
+
+function showResultsGrid(results){
+  const grid = document.getElementById('resultsGrid');
+  grid.innerHTML = '';
+  results.forEach(r=>{
+    const div = document.createElement('div');
+    div.className = 'dex-item ' + (r.variant==='normal'?'v-normal':r.variant==='rainbow'?'v-rainbow':'v-color');
+    if(r.variant!=='normal' && r.variant!=='rainbow'){
+      const cc = COLOR_VARIANTS.find(c=>c.key===r.variant);
+      div.style.setProperty('--v-color', cc? '#'+({red:'ff5f5f',blue:'5faaff',green:'5fff8f',purple:'c95fff',gold:'ffd54a'}[cc.key]) : '#888');
+    }
+    const img = document.createElement('img'); img.src = r.char.img; img.style.filter = variantFilter(r.variant);
+    div.appendChild(img);
+    const nm = document.createElement('div'); nm.className='nm'; nm.textContent = r.char.name;
+    div.appendChild(nm);
+    const cnt = document.createElement('div'); cnt.className='cnt'; cnt.textContent = variantLabel(r.variant);
+    div.appendChild(cnt);
+    grid.appendChild(div);
+  });
+  document.getElementById('resultsOverlay').style.display = 'block';
+}
+document.getElementById('closeResultsBtn').onclick = ()=>{
+  document.getElementById('resultsOverlay').style.display = 'none';
 };
 
-// ==== 図鑑（存在数リアルタイム） ====
+async function runGacha(n){
+  if(gachaBusy) return;
+  const cost = n * 10;
+  if(userData.gems < cost){ toast('ジェムが足りないよ！コインタイムで稼ごう'); return; }
+  gachaBusy = true;
+  ['gachaBtn1','gachaBtn10','gachaBtn100'].forEach(id=>document.getElementById(id).disabled = true);
+  userData.gems -= cost; renderGems(); await saveUser();
+
+  const results = [];
+  for(let i=0;i<n;i++) results.push(drawOne());
+
+  if(n===1){
+    await playSingleAnimation(results[0]);
+    await commitPulls(results);
+    renderDex();
+  } else {
+    // 高速フラッシュ演出のあと結果一覧
+    const flash = document.getElementById('gachaFlash');
+    const resImg = document.getElementById('gachaResult');
+    resImg.style.opacity='1'; resImg.src = results[results.length-1].char.img;
+    resImg.style.filter = 'brightness(2) blur(2px)';
+    resImg.style.transform='scale(1.1)';
+    flash.style.animation='none'; void flash.offsetWidth; flash.style.animation='flashAnim .6s ease';
+    await new Promise(r=>setTimeout(r,650));
+    await commitPulls(results);
+    renderDex();
+    const best = results.reduce((a,b)=>{
+      const rank = v=> v==='rainbow'?2:v==='normal'?0:1;
+      return rank(b.variant) > rank(a.variant) ? b : a;
+    });
+    toast(`${n}連結果：最高レアは「${variantLabel(best.variant)}」！`);
+    showResultsGrid(results);
+  }
+
+  ['gachaBtn1','gachaBtn10','gachaBtn100'].forEach(id=>document.getElementById(id).disabled = false);
+  gachaBusy = false;
+}
+document.getElementById('gachaBtn1').onclick = ()=>runGacha(1);
+document.getElementById('gachaBtn10').onclick = ()=>runGacha(10);
+document.getElementById('gachaBtn100').onclick = ()=>runGacha(100);
+
+// ==== 図鑑（存在数リアルタイム／表示切り替え／売却） ====
+let dexMode = 'owned'; // 'owned' か 'total'
+document.getElementById('dexModeOwned').onclick = ()=>{ dexMode='owned'; renderDex(); };
+document.getElementById('dexModeTotal').onclick = ()=>{ dexMode='total'; renderDex(); };
+
+function sellPrice(variant){
+  if(variant==='normal') return 1;
+  if(variant==='rainbow') return 50;
+  return 10;
+}
+
 function listenStats(){
   db.collection('stats').onSnapshot(snap=>{
     snap.forEach(d=>{ statsCache[d.id] = d.data().total || 0; });
@@ -467,13 +564,42 @@ function renderDex(){
       nm.textContent = owned>0 ? `${char.name}` : '？？？';
       div.appendChild(nm);
       const cnt = document.createElement('div'); cnt.className='cnt';
-      cnt.textContent = `${variantLabel(v)} ${owned}/${total}`;
+      if(dexMode==='owned'){
+        cnt.innerHTML = `<b style="font-size:13px;">所持${owned}</b><br><span style="opacity:.6; font-size:9px;">存在${total}</span>`;
+      } else {
+        cnt.innerHTML = `<span style="opacity:.6; font-size:9px;">所持${owned}</span><br><b style="font-size:13px;">存在${total}</b>`;
+      }
       div.appendChild(cnt);
+      if(owned>0){
+        div.style.cursor='pointer';
+        div.onclick = ()=> openSellDialog(char, v, key, owned);
+      }
       grid.appendChild(div);
     });
   });
   updateHomeStats();
 }
+
+function openSellDialog(char, variant, key, owned){
+  document.getElementById('sellImg').src = char.img;
+  document.getElementById('sellImg').style.filter = variantFilter(variant);
+  document.getElementById('sellName').textContent = `${char.name}（${variantLabel(variant)}）`;
+  const price = sellPrice(variant);
+  document.getElementById('sellInfo').textContent = `所持数: ${owned}枚 ／ 売却で💎${price}もらえます`;
+  const confirmBtn = document.getElementById('sellConfirmBtn');
+  confirmBtn.onclick = async ()=>{
+    userData.owned[key] = (userData.owned[key]||0) - 1;
+    userData.gems += price;
+    await saveUser();
+    renderGems(); renderDex(); buildTradeSelects();
+    document.getElementById('sellOverlay').style.display = 'none';
+    toast(`売却して💎+${price}！`);
+  };
+  document.getElementById('sellOverlay').style.display = 'flex';
+}
+document.getElementById('sellCancelBtn').onclick = ()=>{
+  document.getElementById('sellOverlay').style.display = 'none';
+};
 
 // ==== トレード ====
 function ownedCardOptions(){
