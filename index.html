@@ -152,6 +152,7 @@ select{width:100%; padding:10px; border-radius:10px; background:#00000044; color
   <section id="s-gacha" class="screen">
     <div class="card-box">
       <h2>🎰 コレクションガチャ</h2>
+      <div id="seasonBanner" style="background:#00000044; border:1px solid var(--gold); border-radius:12px; padding:10px 12px; margin-bottom:12px; font-size:12px; color:var(--gold); line-height:1.6;"></div>
       <div id="gachaStage">
         <div class="rays" id="gachaRays"></div>
         <div class="flash" id="gachaFlash"></div>
@@ -328,9 +329,21 @@ document.getElementById('startBtn').onclick = async ()=>{
   initApp();
 };
 
+function computeRainbowCount(owned){
+  let c = 0;
+  Object.keys(owned||{}).forEach(k=>{ if(k.endsWith('_rainbow')) c += owned[k]; });
+  return c;
+}
+
 function initApp(){
   userData.owned = userData.owned || {};
-  userData.rainbowCount = userData.rainbowCount || 0;
+  const computed = computeRainbowCount(userData.owned);
+  // Firestoreのorderbyはフィールドが無いドキュメントを除外してしまうため、
+  // 未設定 or ズレている場合はここで必ず書き込んでランキングに出るようにする
+  if(userData.rainbowCount === undefined || userData.rainbowCount !== computed){
+    userData.rainbowCount = computed;
+    saveUser();
+  }
   document.getElementById('app').style.display='block';
   document.getElementById('welcomeMsg').textContent = `ようこそ、${userData.username}さん！`;
   document.getElementById('meName').textContent = userData.username;
@@ -342,6 +355,7 @@ function initApp(){
   updateDailyBtn();
   updateCoinBtn();
   listenRankings();
+  updateSeasonBanner();
 }
 
 function renderGems(){ document.getElementById('gemCount').textContent = userData.gems; }
@@ -494,8 +508,28 @@ document.getElementById('closeResultsBtn').onclick = ()=>{
   document.getElementById('resultsOverlay').style.display = 'none';
 };
 
+// ==== お試しシーズン（11月に入ると引けなくなる） ====
+const SEASON_END = new Date('2026-11-01T00:00:00+09:00'); // これ以降は抽選不可
+function isSeasonOver(){ return new Date() >= SEASON_END; }
+function updateSeasonBanner(){
+  const box = document.getElementById('seasonBanner');
+  if(!box) return;
+  if(isSeasonOver()){
+    box.innerHTML = '🔒 このガチャは「お試しシーズン」でした。10月30日で終了し、現在は引けません。';
+    box.style.borderColor = '#ff5f5f'; box.style.color = '#ff9a9a';
+    ['gachaBtn1','gachaBtn10','gachaBtn100'].forEach(id=>{
+      const b = document.getElementById(id); b.disabled = true; b.textContent = '受付終了';
+    });
+  } else {
+    const diffMs = SEASON_END - new Date();
+    const days = Math.ceil(diffMs / (1000*60*60*24));
+    box.innerHTML = `🎉 このガチャは「お試しシーズン」限定です！10月30日まで引けます（残り約${days}日）。11月に入ると引けなくなります。`;
+  }
+}
+
 async function runGacha(n){
   if(gachaBusy) return;
+  if(isSeasonOver()){ toast('お試しシーズンは終了しました'); updateSeasonBanner(); return; }
   const cost = n * 10;
   if(userData.gems < cost){ toast('ジェムが足りないよ！コインタイムで稼ごう'); return; }
   gachaBusy = true;
@@ -528,7 +562,7 @@ async function runGacha(n){
     showResultsGrid(results);
   }
 
-  ['gachaBtn1','gachaBtn10','gachaBtn100'].forEach(id=>document.getElementById(id).disabled = false);
+  if(!isSeasonOver()) ['gachaBtn1','gachaBtn10','gachaBtn100'].forEach(id=>document.getElementById(id).disabled = false);
   gachaBusy = false;
 }
 document.getElementById('gachaBtn1').onclick = ()=>runGacha(1);
