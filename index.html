@@ -40,9 +40,8 @@ main{padding:12px 12px 90px; max-width:520px; margin:0 auto;}
 nav{position:fixed; bottom:0; left:0; right:0; z-index:20; display:flex;
   background:rgba(20,14,40,.95); border-top:1px solid #ffffff22;
   padding-bottom:env(safe-area-inset-bottom,0px);}
-nav button{flex:1; background:none; border:none; color:var(--muted); padding:10px 2px; font-size:11px; cursor:pointer;}
+nav button{flex:1; background:none; border:none; color:var(--muted); padding:14px 2px; font-size:12px; cursor:pointer;}
 nav button.active{color:var(--accent2); font-weight:700;}
-nav button div{font-size:19px;}
 .screen{display:none;}
 .screen.active{display:block; animation:fadein .25s ease;}
 @keyframes fadein{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
@@ -86,6 +85,11 @@ small.hint{color:var(--muted); font-size:11px; display:block; margin-top:4px;}
 select{width:100%; padding:10px; border-radius:10px; background:#00000044; color:#fff; border:1px solid #ffffff33; margin-bottom:8px;}
 .toast{position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:#000000cc; padding:10px 18px; border-radius:20px; font-size:13px; z-index:40; opacity:0; transition:opacity .3s;}
 .toast.show{opacity:1;}
+.rank-row{display:flex; align-items:center; gap:10px; padding:8px 4px; border-bottom:1px solid #ffffff14; font-size:13px;}
+.rank-row:last-child{border-bottom:none;}
+.rank-num{width:22px; text-align:center; font-weight:800; color:var(--gold);}
+.rank-name{flex:1; color:#fff;}
+.rank-val{color:var(--accent2); font-weight:700;}
 #loginWrap{display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px;}
 </style>
 </head>
@@ -118,6 +122,14 @@ select{width:100%; padding:10px; border-radius:10px; background:#00000044; color
     <div class="card-box">
       <h2>📊 コレクション状況</h2>
       <p style="font-size:13px; color:var(--muted);">所持カード数: <b id="ownedTotal" style="color:#fff;">0</b> / <span id="allTotal">0</span></p>
+    </div>
+    <div class="card-box">
+      <h2>🌈 レインボー所持数ランキング</h2>
+      <div id="rankRainbow"></div>
+    </div>
+    <div class="card-box">
+      <h2>💎 ダイヤ所持数ランキング</h2>
+      <div id="rankGems"></div>
     </div>
   </section>
 
@@ -210,12 +222,12 @@ select{width:100%; padding:10px; border-radius:10px; background:#00000044; color
 </main>
 
 <nav>
-  <button data-s="s-home" class="active"><div>🏠</div>ホーム</button>
-  <button data-s="s-coin"><div>🪙</div>コイン</button>
-  <button data-s="s-gacha"><div>🎰</div>ガチャ</button>
-  <button data-s="s-dex"><div>📖</div>図鑑</button>
-  <button data-s="s-trade"><div>🔁</div>トレード</button>
-  <button data-s="s-me"><div>👤</div>マイ</button>
+  <button data-s="s-home" class="active">ホーム</button>
+  <button data-s="s-coin">コイン</button>
+  <button data-s="s-gacha">ガチャ</button>
+  <button data-s="s-dex">図鑑</button>
+  <button data-s="s-trade">トレード</button>
+  <button data-s="s-me">マイ</button>
 </nav>
 </div>
 
@@ -310,13 +322,15 @@ auth.onAuthStateChanged(async (user)=>{
 document.getElementById('startBtn').onclick = async ()=>{
   const name = document.getElementById('unameInput').value.trim();
   if(!name){ toast('なまえを入力してね'); return; }
-  userData = {username:name, gems:50, owned:{}, createdAt: Date.now()};
+  userData = {username:name, gems:50, owned:{}, rainbowCount:0, createdAt: Date.now()};
   await db.collection('users').doc(uid).set(userData);
   document.getElementById('loginWrap').style.display='none';
   initApp();
 };
 
 function initApp(){
+  userData.owned = userData.owned || {};
+  userData.rainbowCount = userData.rainbowCount || 0;
   document.getElementById('app').style.display='block';
   document.getElementById('welcomeMsg').textContent = `ようこそ、${userData.username}さん！`;
   document.getElementById('meName').textContent = userData.username;
@@ -327,6 +341,7 @@ function initApp(){
   listenTrades();
   updateDailyBtn();
   updateCoinBtn();
+  listenRankings();
 }
 
 function renderGems(){ document.getElementById('gemCount').textContent = userData.gems; }
@@ -416,6 +431,7 @@ async function commitPulls(results){
   // ユーザー所持数を更新（1回で保存）
   results.forEach(r=>{
     userData.owned[r.key] = (userData.owned[r.key]||0) + 1;
+    if(r.variant==='rainbow') userData.rainbowCount = (userData.rainbowCount||0) + 1;
   });
   await saveUser();
   // グローバル存在数をバッチで加算
@@ -590,7 +606,10 @@ function openSellDialog(char, variant, key, owned){
   confirmBtn.onclick = async ()=>{
     userData.owned[key] = (userData.owned[key]||0) - 1;
     userData.gems += price;
+    if(variant==='rainbow') userData.rainbowCount = Math.max(0, (userData.rainbowCount||0) - 1);
     await saveUser();
+    // 存在数もその分減らす
+    db.collection('stats').doc(key).set({total: firebase.firestore.FieldValue.increment(-1)}, {merge:true}).catch(()=>{});
     renderGems(); renderDex(); buildTradeSelects();
     document.getElementById('sellOverlay').style.display = 'none';
     toast(`売却して💎+${price}！`);
@@ -672,6 +691,41 @@ function listenTrades(){
     });
   });
 }
+
+function listenRankings(){
+  db.collection('users').orderBy('rainbowCount','desc').limit(10).onSnapshot(snap=>{
+    const box = document.getElementById('rankRainbow');
+    box.innerHTML = '';
+    let i=0, shown=0;
+    snap.forEach(doc=>{
+      i++;
+      const d = doc.data();
+      if(!d.rainbowCount) return;
+      shown++;
+      const row = document.createElement('div'); row.className='rank-row';
+      row.innerHTML = `<div class="rank-num">${shown}</div><div class="rank-name">${d.username||'???'}</div><div class="rank-val">${d.rainbowCount}枚</div>`;
+      box.appendChild(row);
+    });
+    if(!shown) box.innerHTML = '<p style="font-size:12px; color:var(--muted);">まだ誰もレインボーを持っていません</p>';
+  }, ()=>{
+    document.getElementById('rankRainbow').innerHTML = '<p style="font-size:12px; color:var(--muted);">ランキングを取得できませんでした</p>';
+  });
+  db.collection('users').orderBy('gems','desc').limit(10).onSnapshot(snap=>{
+    const box = document.getElementById('rankGems');
+    box.innerHTML = '';
+    let i=0;
+    snap.forEach(doc=>{
+      i++;
+      const d = doc.data();
+      const row = document.createElement('div'); row.className='rank-row';
+      row.innerHTML = `<div class="rank-num">${i}</div><div class="rank-name">${d.username||'???'}</div><div class="rank-val">💎${d.gems||0}</div>`;
+      box.appendChild(row);
+    });
+  }, ()=>{
+    document.getElementById('rankGems').innerHTML = '<p style="font-size:12px; color:var(--muted);">ランキングを取得できませんでした</p>';
+  });
+}
+
 async function acceptTrade(tradeId, t){
   if((userData.owned[t.wantKey]||0) < 1){ toast('希望されているカードを持っていません'); return; }
   try{
@@ -684,13 +738,19 @@ async function acceptTrade(tradeId, t){
       if(!fromDoc.exists) throw new Error('相手が見つかりません');
       const fromData = fromDoc.data();
       if((fromData.owned[t.offerKey]||0) < 1) throw new Error('相手はもうそのカードを持っていません');
+      const offerIsRainbow = t.offerKey.endsWith('_rainbow');
+      const wantIsRainbow = t.wantKey.endsWith('_rainbow');
       // 相手：出品カードを減らし、希望カードを増やす
       fromData.owned[t.offerKey] = (fromData.owned[t.offerKey]||0) - 1;
       fromData.owned[t.wantKey] = (fromData.owned[t.wantKey]||0) + 1;
+      if(offerIsRainbow) fromData.rainbowCount = Math.max(0,(fromData.rainbowCount||0)-1);
+      if(wantIsRainbow) fromData.rainbowCount = (fromData.rainbowCount||0)+1;
       tx.set(fromRef, fromData, {merge:true});
       // 自分：希望カードを減らし、出品カードを増やす
       userData.owned[t.wantKey] = (userData.owned[t.wantKey]||0) - 1;
       userData.owned[t.offerKey] = (userData.owned[t.offerKey]||0) + 1;
+      if(wantIsRainbow) userData.rainbowCount = Math.max(0,(userData.rainbowCount||0)-1);
+      if(offerIsRainbow) userData.rainbowCount = (userData.rainbowCount||0)+1;
       const myRef = db.collection('users').doc(uid);
       tx.set(myRef, userData, {merge:true});
       tx.update(tradeRef, {status:'done'});
