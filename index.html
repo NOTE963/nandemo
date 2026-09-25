@@ -152,6 +152,29 @@ input[type=range]::-moz-range-thumb{width:22px; height:22px; border-radius:50%; 
       <button class="btn" id="coinBtn">タップで💎5ゲット！</button>
       <small class="hint">2秒に1回タップできるよ</small>
     </div>
+
+    <div class="card-box">
+      <h2>⚔ バトル（CPU対戦）</h2>
+      <p style="font-size:12px; color:var(--muted); line-height:1.6;">
+        持っているカードから3枚選んでください（逆さまは使用不可）。<br>
+        ノーマル→カラーに負け／カラー→レインボーに負け／レインボー→ノーマルに負けます。同じ種類同士はあいこ。<br>
+        毎ラウンド、出すカードは自分で選べます。
+      </p>
+      <div class="grid" id="battleSelectGrid"></div>
+      <p style="font-size:13px; margin-top:10px;">選択中: <span id="battleSelectedCount">0</span>/3</p>
+      <button class="btn" id="battleStartBtn" disabled>この3枚でバトル開始</button>
+    </div>
+    <div class="card-box" id="battleHandBox" style="display:none;">
+      <h2>ラウンド <span id="battleRoundNum">1</span> / 3</h2>
+      <p style="font-size:12px; color:var(--muted);">出すカードをタップして選んでください</p>
+      <div class="grid" id="battleHandGrid"></div>
+    </div>
+    <div class="card-box" id="battleResultBox" style="display:none;">
+      <h2>結果</h2>
+      <div id="battleRounds"></div>
+      <p id="battleFinalResult" style="font-size:16px; font-weight:800; margin-top:10px;"></p>
+      <button class="btn secondary" id="battleAgainBtn" style="margin-top:10px;">もう一度選ぶ</button>
+    </div>
   </section>
 
   <section id="s-gacha" class="screen">
@@ -225,25 +248,6 @@ input[type=range]::-moz-range-thumb{width:22px; height:22px; border-radius:50%; 
     </div>
   </section>
 
-  <section id="s-battle" class="screen">
-    <div class="card-box">
-      <h2>⚔ バトル（CPU対戦）</h2>
-      <p style="font-size:12px; color:var(--muted); line-height:1.6;">
-        持っているカードから3枚選んでください（逆さまは使用不可）。<br>
-        ノーマル→カラーに負け／カラー→レインボーに負け／レインボー→ノーマルに負けます。同じ種類同士はあいこ。3本勝負でCPUと戦います。
-      </p>
-      <div class="grid" id="battleSelectGrid"></div>
-      <p style="font-size:13px; margin-top:10px;">選択中: <span id="battleSelectedCount">0</span>/3</p>
-      <button class="btn" id="battleStartBtn" disabled>バトル開始</button>
-    </div>
-    <div class="card-box" id="battleResultBox" style="display:none;">
-      <h2>結果</h2>
-      <div id="battleRounds"></div>
-      <p id="battleFinalResult" style="font-size:16px; font-weight:800; margin-top:10px;"></p>
-      <button class="btn secondary" id="battleAgainBtn" style="margin-top:10px;">もう一度選ぶ</button>
-    </div>
-  </section>
-
   <section id="s-me" class="screen">
     <div class="card-box">
       <h2>👤 マイページ</h2>
@@ -261,7 +265,6 @@ input[type=range]::-moz-range-thumb{width:22px; height:22px; border-radius:50%; 
   <button data-s="s-gacha">ガチャ</button>
   <button data-s="s-dex">図鑑</button>
   <button data-s="s-trade">トレード</button>
-  <button data-s="s-battle">バトル</button>
   <button data-s="s-me">マイ</button>
 </nav>
 </div>
@@ -433,6 +436,7 @@ function initApp(){
   updateCoinBtn();
   listenRankings();
   updateSeasonBanner();
+  renderBattleSelect();
 }
 
 function renderGems(){ document.getElementById('gemCount').textContent = userData.gems; }
@@ -450,7 +454,7 @@ document.querySelectorAll('nav button').forEach(btn=>{
     document.getElementById(btn.dataset.s).classList.add('active');
     if(btn.dataset.s==='s-dex') renderDex();
     if(btn.dataset.s==='s-trade') buildTradeSelects();
-    if(btn.dataset.s==='s-battle') renderBattleSelect();
+    if(btn.dataset.s==='s-coin') renderBattleSelect();
   };
 });
 
@@ -962,6 +966,7 @@ async function buyListing(tradeId, t){
 
 // ==== バトル（CPU対戦、ノーマル<カラー<レインボー<ノーマルの三すくみ） ====
 let battleSelected = []; // {key, char, variant} を最大3つ
+let battleHand = [], battleRoundNum = 1, battleWins = 0, battleLosses = 0, battleDraws = 0, battleRows = [];
 function tierOf(v){
   if(v==='normal') return 'normal';
   if(v==='rainbow') return 'rainbow';
@@ -1015,35 +1020,77 @@ function renderBattleSelect(){
   document.getElementById('battleSelectedCount').textContent = battleSelected.length;
   document.getElementById('battleStartBtn').disabled = battleSelected.length !== 3;
 }
-document.getElementById('battleStartBtn').onclick = async ()=>{
+document.getElementById('battleStartBtn').onclick = ()=>{
   if(battleSelected.length !== 3) return;
-  const tierPool = ['normal','color','rainbow'];
-  let wins=0, losses=0, draws=0;
-  const rows = [];
-  battleSelected.forEach((sel,i)=>{
-    const pTier = tierOf(sel.variant);
-    const cTier = tierPool[Math.floor(Math.random()*3)];
-    const result = judgeRound(pTier, cTier);
-    if(result==='win') wins++; else if(result==='lose') losses++; else draws++;
-    const label = result==='win' ? '勝ち' : result==='lose' ? '負け' : 'あいこ';
-    const color = result==='win' ? 'var(--accent2)' : result==='lose' ? '#ff5f5f' : 'var(--muted)';
-    rows.push(`<div class="trade-item"><img src="${sel.char.img}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;filter:${variantFilter(sel.variant)}"><div class="info">ラウンド${i+1}: あなた「${variantLabel(sel.variant)}」 vs CPU「${tierLabel(cTier)}」→ <b style="color:${color};">${label}</b></div></div>`);
-  });
-  document.getElementById('battleRounds').innerHTML = rows.join('');
-  let finalMsg = '', reward = 0;
-  if(wins > losses){ finalMsg = '🎉 バトル勝利！'; reward = 30; }
-  else if(losses > wins){ finalMsg = '負けてしまいました…'; reward = 0; }
-  else { finalMsg = 'あいこ（引き分け）'; reward = 5; }
-  if(reward > 0){
-    userData.gems += reward; renderGems(); await saveUser();
-    finalMsg += `（💎+${reward}）`;
-  }
-  document.getElementById('battleFinalResult').textContent = finalMsg;
-  document.getElementById('battleResultBox').style.display = 'block';
+  battleHand = battleSelected.map(s=>s); // 対戦中の残りカード
+  battleRoundNum = 1;
+  battleWins = 0; battleLosses = 0; battleDraws = 0;
+  battleRows = [];
+  document.getElementById('battleResultBox').style.display = 'none';
+  document.getElementById('battleHandBox').style.display = 'block';
+  renderBattleHand();
 };
+
+function renderBattleHand(){
+  document.getElementById('battleRoundNum').textContent = battleRoundNum;
+  const grid = document.getElementById('battleHandGrid');
+  grid.innerHTML = '';
+  battleHand.forEach((sel, idx)=>{
+    const div = document.createElement('div');
+    div.className = 'dex-item ' + (sel.variant==='normal'?'v-normal':sel.variant==='rainbow'?'v-rainbow':'v-color');
+    if(sel.variant!=='normal' && sel.variant!=='rainbow'){
+      const cc = COLOR_VARIANTS.find(x=>x.key===sel.variant);
+      div.style.setProperty('--v-color', cc? '#'+({red:'ff5f5f',blue:'5faaff',green:'5fff8f',purple:'c95fff',gold:'ffd54a'}[cc.key]) : '#888');
+    }
+    const img = document.createElement('img'); img.src = sel.char.img; img.style.filter = variantFilter(sel.variant);
+    div.appendChild(img);
+    const nm = document.createElement('div'); nm.className='nm'; nm.textContent = sel.char.name;
+    div.appendChild(nm);
+    const cnt = document.createElement('div'); cnt.className='cnt'; cnt.textContent = variantLabel(sel.variant);
+    div.appendChild(cnt);
+    div.style.cursor='pointer';
+    div.onclick = ()=> playBattleCard(idx);
+    grid.appendChild(div);
+  });
+}
+
+async function playBattleCard(idx){
+  const sel = battleHand[idx];
+  battleHand.splice(idx,1);
+  const tierPool = ['normal','color','rainbow'];
+  const pTier = tierOf(sel.variant);
+  const cTier = tierPool[Math.floor(Math.random()*3)];
+  const result = judgeRound(pTier, cTier);
+  if(result==='win') battleWins++; else if(result==='lose') battleLosses++; else battleDraws++;
+  const label = result==='win' ? '勝ち' : result==='lose' ? '負け' : 'あいこ';
+  const color = result==='win' ? 'var(--accent2)' : result==='lose' ? '#ff5f5f' : 'var(--muted)';
+  battleRows.push(`<div class="trade-item"><img src="${sel.char.img}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;filter:${variantFilter(sel.variant)}"><div class="info">ラウンド${battleRoundNum}: あなた「${variantLabel(sel.variant)}」 vs CPU「${tierLabel(cTier)}」→ <b style="color:${color};">${label}</b></div></div>`);
+  toast(`CPUは「${tierLabel(cTier)}」！ ${label}！`);
+
+  if(battleHand.length === 0){
+    // バトル終了
+    document.getElementById('battleHandBox').style.display = 'none';
+    document.getElementById('battleRounds').innerHTML = battleRows.join('');
+    let finalMsg = '', reward = 0;
+    if(battleWins > battleLosses){ finalMsg = '🎉 バトル勝利！'; reward = 30; }
+    else if(battleLosses > battleWins){ finalMsg = '負けてしまいました…'; reward = 0; }
+    else { finalMsg = 'あいこ（引き分け）'; reward = 5; }
+    if(reward > 0){
+      userData.gems += reward; renderGems(); await saveUser();
+      finalMsg += `（💎+${reward}）`;
+    }
+    document.getElementById('battleFinalResult').textContent = finalMsg;
+    document.getElementById('battleResultBox').style.display = 'block';
+  } else {
+    battleRoundNum++;
+    renderBattleHand();
+  }
+}
+
 document.getElementById('battleAgainBtn').onclick = ()=>{
   battleSelected = [];
   document.getElementById('battleResultBox').style.display = 'none';
+  document.getElementById('battleHandBox').style.display = 'none';
   renderBattleSelect();
 };
 
